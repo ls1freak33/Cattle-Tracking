@@ -1,0 +1,265 @@
+from fastapi import FastAPI, UploadFile, File, Form
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, relationship
+import shutil
+import os
+
+# ---------------- SETUP ----------------
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+DATABASE_URL = "sqlite:///./cattle.db"
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(bind=engine)
+Base = declarative_base()
+
+UPLOAD_DIR = "uploads"
+os.makedirs("uploads/cows", exist_ok=True)
+os.makedirs("uploads/calves", exist_ok=True)
+os.makedirs("uploads/bulls", exist_ok=True)
+
+# ---------------- MODELS ----------------
+
+class Bull(Base):
+    __tablename__ = "bulls"
+    id = Column(Integer, primary_key=True, index=True)
+    bull_number = Column(String, unique=True, index=True)
+    photo = Column(String)
+    notes = Column(String)
+
+
+class Cow(Base):
+    __tablename__ = "cows"
+    id = Column(Integer, primary_key=True, index=True)
+    cow_number = Column(String, unique=True, index=True)
+    tag_color = Column(String)
+    photo = Column(String)
+
+
+class Calf(Base):
+    __tablename__ = "calves"
+    id = Column(Integer, primary_key=True, index=True)
+    tag = Column(String, unique=True, index=True)
+    tag_color = Column(String)
+    sex = Column(String)
+    birth_date = Column(String)
+    status = Column(String)  # Kept / Sold
+    role = Column(String, default="Calf")  # Calf / Heifer / Cow
+    photo = Column(String)
+
+    cow_id = Column(Integer, ForeignKey("cows.id"))
+    bull_id = Column(Integer, ForeignKey("bulls.id"))
+
+    cow = relationship("Cow")
+    bull = relationship("Bull")
+    vaccinations = relationship("Vaccination", back_populates="calf")
+
+
+class Vaccination(Base):
+    __tablename__ = "vaccinations"
+    id = Column(Integer, primary_key=True, index=True)
+    vaccine_name = Column(String)
+    vaccine_date = Column(String)
+    calf_id = Column(Integer, ForeignKey("calves.id"))
+
+    calf = relationship("Calf", back_populates="vaccinations")
+
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    pin = Column(String)
+
+
+Base.metadata.create_all(bind=engine)
+
+# ---------------- BULLS ----------------
+
+@app.post("/bulls")
+def add_bull(
+    bull_number: str = Form(...),
+    notes: str = Form(None),
+    photo: UploadFile = File(None)
+):
+    db = SessionLocal()
+    filename = None
+
+    if photo:
+        filename = f"uploads/bulls/{photo.filename}"
+        with open(filename, "wb") as buffer:
+            shutil.copyfileobj(photo.file, buffer)
+
+    bull = Bull(bull_number=bull_number, notes=notes, photo=filename)
+    db.add(bull)
+    db.commit()
+    return {"status": "Bull added"}
+
+
+@app.get("/bulls")
+def get_bulls():
+    db = SessionLocal()
+    return db.query(Bull).all()
+
+
+# ---------------- COWS ----------------
+
+@app.post("/cows")
+def add_cow(
+    cow_number: str = Form(...),
+    tag_color: str = Form(...),
+    photo: UploadFile = File(None)
+):
+    db = SessionLocal()
+    filename = None
+
+    if photo:
+        filename = f"uploads/cows/{photo.filename}"
+        with open(filename, "wb") as buffer:
+            shutil.copyfileobj(photo.file, buffer)
+
+    cow = Cow(cow_number=cow_number, tag_color=tag_color, photo=filename)
+    db.add(cow)
+    db.commit()
+    return {"status": "Cow added"}
+
+
+@app.get("/cows")
+def get_cows():
+    db = SessionLocal()
+    return db.query(Cow).all()
+
+
+# ---------------- CALVES ----------------
+
+@app.post("/calves")
+def add_calf(
+    tag: str = Form(...),
+    tag_color: str = Form(...),
+    sex: str = Form(...),
+    birth_date: str = Form(...),
+    status: str = Form(...),
+    cow_id: int = Form(...),
+    bull_id: int = Form(...),
+    photo: UploadFile = File(None)
+):
+    db = SessionLocal()
+    filename = None
+
+    if photo:
+        filename = f"uploads/calves/{photo.filename}"
+        with open(filename, "wb") as buffer:
+            shutil.copyfileobj(photo.file, buffer)
+
+    calf = Calf(
+        tag=tag,
+        tag_color=tag_color,
+        sex=sex,
+        birth_date=birth_date,
+        status=status,
+        cow_id=cow_id,
+        bull_id=bull_id,
+        photo=filename
+    )
+
+    db.add(calf)
+    db.commit()
+    return {"status": "Calf added"}
+
+
+@app.get("/calves")
+def get_calves():
+    db = SessionLocal()
+    return db.query(Calf).all()
+
+
+# ---------------- VACCINATIONS ----------------
+
+@app.post("/vaccinations")
+def add_vaccination(
+    calf_id: int = Form(...),
+    vaccine_name: str = Form(...),
+    vaccine_date: str = Form(...)
+):
+    db = SessionLocal()
+    v = Vaccination(
+        calf_id=calf_id,
+        vaccine_name=vaccine_name,
+        vaccine_date=vaccine_date
+    )
+    db.add(v)
+    db.commit()
+    return {"status": "Vaccine added"}
+
+
+# ---------------- PROMOTIONS ----------------
+
+@app.post("/calves/{calf_id}/promote/heifer")
+def promote_to_heifer(calf_id: int):
+    db = SessionLocal()
+    calf = db.query(Calf).get(calf_id)
+
+    if not calf:
+        return {"error": "Calf not found"}
+
+    if calf.sex != "Female":
+        return {"error": "Only females can be heifers"}
+
+    calf.role = "Heifer"
+    calf.status = "Kept"
+    db.commit()
+    return {"status": "Promoted to Heifer"}
+
+
+@app.post("/calves/{calf_id}/promote/cow")
+def promote_to_cow(calf_id: int):
+    db = SessionLocal()
+    calf = db.query(Calf).get(calf_id)
+
+    if not calf:
+        return {"error": "Calf not found"}
+
+    if calf.role != "Heifer":
+        return {"error": "Only heifers can become cows"}
+
+    new_cow = Cow(
+        cow_number=calf.tag,
+        tag_color=calf.tag_color,
+        photo=calf.photo
+    )
+
+    db.add(new_cow)
+    db.commit()
+
+    calf.role = "Cow"
+    calf.cow_id = new_cow.id
+    db.commit()
+
+    return {"status": "Promoted to Cow"}
+
+
+# ---------------- SEARCH ----------------
+
+@app.get("/search/{query}")
+def search(query: str):
+    db = SessionLocal()
+
+    cows = db.query(Cow).filter(Cow.cow_number.contains(query)).all()
+    calves = db.query(Calf).filter(Calf.tag.contains(query)).all()
+    bulls = db.query(Bull).filter(Bull.bull_number.contains(query)).all()
+
+    return {
+        "cows": cows,
+        "calves": calves,
+        "bulls": bulls
+    }
