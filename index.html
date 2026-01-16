@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cattle Tracker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial; padding: 15px; background: #f2f2f2; }
+        h1 { text-align: center; }
+        button { padding: 14px; margin: 6px 0; width: 100%; font-size: 18px; background:#2e7d32;color:white;border:none;border-radius:8px;}
+        input, select { width: 100%; padding: 12px; margin: 6px 0; font-size: 16px; }
+        .card { background: white; padding: 15px; margin: 10px 0; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+<h1>Cattle Tracker</h1>
+
+<div class="card">
+<h2>Add Calf</h2>
+<input id="tag" placeholder="Tag Number">
+<select id="color">
+<option>Yellow</option><option>Red</option><option>Orange</option><option>White</option>
+</select>
+<select id="sex"><option>Male</option><option>Female</option></select>
+<input id="birth" type="date">
+<select id="status"><option>Kept</option><option>Sold</option></select>
+<select id="cow"></select>
+<select id="bull"></select>
+<button onclick="saveCalf()">Save Calf</button>
+</div>
+
+<div class="card">
+<h2>Add Cow</h2>
+<input id="cowNum" placeholder="Cow Number">
+<select id="cowColor"><option>Yellow</option><option>Red</option><option>Orange</option><option>White</option></select>
+<button onclick="saveCow()">Save Cow</button>
+</div>
+
+<div class="card">
+<h2>Add Bull</h2>
+<input id="bullNum" placeholder="Bull Number">
+<button onclick="saveBull()">Save Bull</button>
+</div>
+
+<div class="card">
+<h2>Search</h2>
+<input id="search" placeholder="Search..." onkeyup="doSearch()">
+<div id="results"></div>
+</div>
+
+<script>
+function load() {
+fetch('/cows').then(r=>r.json()).then(d=>{
+cow.innerHTML='';
+d.forEach(c=>cow.innerHTML+=`<option value="${c.id}">${c.cow_number}</option>`);
+});
+fetch('/bulls').then(r=>r.json()).then(d=>{
+bull.innerHTML='';
+d.forEach(b=>bull.innerHTML+=`<option value="${b.id}">${b.bull_number}</option>`);
+});
+}
+load();
+
+function saveCalf(){
+let fd=new FormData();
+fd.append('tag',tag.value);
+fd.append('tag_color',color.value);
+fd.append('sex',sex.value);
+fd.append('birth_date',birth.value);
+fd.append('status',status.value);
+fd.append('cow_id',cow.value);
+fd.append('bull_id',bull.value);
+fetch('/calves',{method:'POST',body:fd}).then(()=>{alert('Saved');load();});
+}
+
+function saveCow(){
+let fd=new FormData();
+fd.append('cow_number',cowNum.value);
+fd.append('tag_color',cowColor.value);
+fetch('/cows',{method:'POST',body:fd}).then(()=>{alert('Cow Saved');load();});
+}
+
+function saveBull(){
+let fd=new FormData();
+fd.append('bull_number',bullNum.value);
+fetch('/bulls',{method:'POST',body:fd}).then(()=>{alert('Bull Saved');load();});
+}
+
+function doSearch(){
+fetch('/search/'+search.value).then(r=>r.json()).then(d=>{
+results.innerHTML='';
+d.calves.forEach(c=>results.innerHTML+=`<div>Calf ${c.tag}</div>`);
+d.cows.forEach(c=>results.innerHTML+=`<div>Cow ${c.cow_number}</div>`);
+d.bulls.forEach(b=>results.innerHTML+=`<div>Bull ${b.bull_number}</div>`);
+});
+}
+</script>
+
+</body>
+</html>
