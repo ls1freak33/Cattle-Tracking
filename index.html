@@ -58,21 +58,11 @@ input, select {
   margin-top: 12px;
 }
 
-.hidden {
-  display: none;
-}
+.hidden { display: none; }
 
-.calf-card {
-  border-left: 8px solid #4caf50;
-}
-
-.calf-card.male {
-  border-left-color: #2196f3;
-}
-
-.calf-card.sold {
-  border-left-color: #9e9e9e;
-}
+.calf-card { border-left: 8px solid #4caf50; }
+.calf-card.male { border-left-color: #2196f3; }
+.calf-card.sold { border-left-color: #9e9e9e; }
 </style>
 </head>
 
@@ -83,7 +73,7 @@ input, select {
 <!-- HOME -->
 <div id="home">
   <button class="primary" onclick="showAddCalf()">➕ ADD NEW CALF</button>
-  <button class="secondary" onclick="showCalfList()">📋 CALF LIST</button>
+  <button class="secondary" onclick="showCalfList()">📋 CALF LIST (BY AGE)</button>
   <button class="secondary" onclick="showSearch()">🔍 SEARCH</button>
 </div>
 
@@ -98,14 +88,8 @@ input, select {
   </select>
 
   <input id="birthDate" type="date">
-
   <input id="dam" placeholder="Dam (Cow Number)">
   <input id="sire" placeholder="Sire (Bull Number)">
-
-  <select id="calfStatus">
-    <option>Kept</option>
-    <option>Sold</option>
-  </select>
 
   <button class="primary" onclick="saveCalf()">SAVE CALF</button>
   <button class="secondary" onclick="goHome()">Cancel</button>
@@ -113,7 +97,7 @@ input, select {
 
 <!-- CALF LIST -->
 <div id="calfList" class="hidden">
-  <h2>Calves</h2>
+  <h2>Calves (Youngest First)</h2>
   <div id="calfListItems"></div>
   <button class="secondary" onclick="goHome()">Back</button>
 </div>
@@ -137,34 +121,33 @@ function saveData() {
   localStorage.setItem("calves", JSON.stringify(calves));
 }
 
+function hideAll() {
+  document.querySelectorAll("body > div").forEach(d => d.classList.add("hidden"));
+}
+
 function goHome() {
   hideAll();
   document.getElementById("home").classList.remove("hidden");
 }
 
-function hideAll() {
-  document.querySelectorAll("body > div").forEach(d => d.classList.add("hidden"));
-}
-
 function showAddCalf() {
   hideAll();
   document.getElementById("addCalf").classList.remove("hidden");
-  document.getElementById("birthDate").valueAsDate = new Date();
+  birthDate.valueAsDate = new Date();
 }
 
 function saveCalf() {
-  let calf = {
+  calves.push({
     id: Date.now(),
     sex: calfSex.value,
     birthDate: birthDate.value,
     dam: dam.value,
     sire: sire.value,
-    status: calfStatus.value,
     role: "Calf",
+    sold: false,
     tag: null,
     tagColor: null
-  };
-  calves.push(calf);
+  });
   saveData();
   goHome();
 }
@@ -174,21 +157,22 @@ function showCalfList() {
   let container = document.getElementById("calfListItems");
   container.innerHTML = "";
 
-  calves.forEach(c => {
-    let div = document.createElement("div");
-    div.className = "card calf-card " +
-      (c.sex === "Male" ? "male" : "") +
-      (c.status === "Sold" ? " sold" : "");
-    div.innerHTML = `
-      <b>${c.role}</b><br>
-      Sex: ${c.sex}<br>
-      Born: ${c.birthDate}<br>
-      Dam: ${c.dam}<br>
-      Sire: ${c.sire}
-      <button class="secondary" onclick="openCalf(${c.id})">VIEW</button>
-    `;
-    container.appendChild(div);
-  });
+  [...calves].sort((a,b)=>new Date(b.birthDate)-new Date(a.birthDate))
+    .forEach(c => {
+      let div = document.createElement("div");
+      div.className = "card calf-card " +
+        (c.sex==="Male"?"male":"") +
+        (c.sold?" sold":"");
+      div.innerHTML = `
+        <b>${c.role}</b><br>
+        Sex: ${c.sex}<br>
+        Born: ${c.birthDate}<br>
+        Dam: ${c.dam}<br>
+        Sire: ${c.sire}
+        <button class="secondary" onclick="openCalf(${c.id})">VIEW</button>
+      `;
+      container.appendChild(div);
+    });
 
   document.getElementById("calfList").classList.remove("hidden");
 }
@@ -204,10 +188,10 @@ function openCalf(id) {
     Birth: ${selectedCalf.birthDate}<br>
     Dam: ${selectedCalf.dam}<br>
     Sire: ${selectedCalf.sire}<br>
-    Status: ${selectedCalf.status}<br><br>
+    Status: ${selectedCalf.sold ? "Sold" : "Active"}<br><br>
   `;
 
-  if (selectedCalf.sex === "Female" && !selectedCalf.tag) {
+  if (!selectedCalf.sold && selectedCalf.sex==="Female" && !selectedCalf.tag) {
     div.innerHTML += `
       <input id="newTag" placeholder="Assign Tag Number">
       <select id="newColor">
@@ -220,10 +204,12 @@ function openCalf(id) {
     `;
   }
 
-  if (selectedCalf.role === "Heifer") {
-    div.innerHTML += `
-      <button class="primary" onclick="promoteCow()">PROMOTE TO COW</button>
-    `;
+  if (!selectedCalf.sold && selectedCalf.role==="Heifer") {
+    div.innerHTML += `<button class="primary" onclick="promoteCow()">PROMOTE TO COW</button>`;
+  }
+
+  if (!selectedCalf.sold) {
+    div.innerHTML += `<button class="danger" onclick="markSold()">MARK SOLD</button>`;
   }
 
   div.innerHTML += `<button class="secondary" onclick="showCalfList()">Back</button>`;
@@ -240,6 +226,12 @@ function promoteHeifer() {
 
 function promoteCow() {
   selectedCalf.role = "Cow";
+  saveData();
+  showCalfList();
+}
+
+function markSold() {
+  selectedCalf.sold = true;
   saveData();
   showCalfList();
 }
