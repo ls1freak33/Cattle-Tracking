@@ -1,265 +1,294 @@
-from fastapi import FastAPI, UploadFile, File, Form
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
-import shutil
-import os
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cattle Tracker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-# ---------------- SETUP ----------------
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f2f2f2;
+            margin: 0;
+            padding: 15px;
+        }
+        h1 {
+            text-align: center;
+        }
+        button {
+            width: 100%;
+            padding: 16px;
+            margin: 8px 0;
+            font-size: 18px;
+            border-radius: 8px;
+            border: none;
+            background: #2e7d32;
+            color: white;
+        }
+        button.secondary {
+            background: #0277bd;
+        }
+        button.warn {
+            background: #c62828;
+        }
+        input, select {
+            width: 100%;
+            padding: 14px;
+            margin: 6px 0;
+            font-size: 16px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+        .card {
+            background: white;
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 10px;
+        }
+        .hidden {
+            display: none;
+        }
+        .small-btn {
+            padding: 10px;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
 
-app = FastAPI()
+<h1>🐄 Cattle Tracker</h1>
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+<button onclick="showAddCalf()">➕ Add Calf</button>
+<button class="secondary" onclick="showSearch()">🔍 Search</button>
+<button class="secondary" onclick="showAddCow()">Add Cow</button>
+<button class="secondary" onclick="showAddBull()">Add Bull</button>
 
-DATABASE_URL = "sqlite:///./cattle.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(bind=engine)
-Base = declarative_base()
+<!-- ADD CALF -->
+<div id="addCalf" class="card hidden">
+    <h2>Add Calf</h2>
 
-UPLOAD_DIR = "uploads"
-os.makedirs("uploads/cows", exist_ok=True)
-os.makedirs("uploads/calves", exist_ok=True)
-os.makedirs("uploads/bulls", exist_ok=True)
+    <input id="calfTag" placeholder="Tag Number">
 
-# ---------------- MODELS ----------------
+    <select id="tagColor">
+        <option value="">Tag Color</option>
+        <option>Yellow</option>
+        <option>Red</option>
+        <option>Orange</option>
+        <option>White</option>
+    </select>
 
-class Bull(Base):
-    __tablename__ = "bulls"
-    id = Column(Integer, primary_key=True, index=True)
-    bull_number = Column(String, unique=True, index=True)
-    photo = Column(String)
-    notes = Column(String)
+    <select id="sex">
+        <option value="">Sex</option>
+        <option>Male</option>
+        <option>Female</option>
+    </select>
 
+    <input id="birthDate" type="date">
 
-class Cow(Base):
-    __tablename__ = "cows"
-    id = Column(Integer, primary_key=True, index=True)
-    cow_number = Column(String, unique=True, index=True)
-    tag_color = Column(String)
-    photo = Column(String)
+    <select id="status">
+        <option>Kept</option>
+        <option>Sold</option>
+    </select>
 
+    <select id="cowSelect"></select>
+    <select id="bullSelect"></select>
 
-class Calf(Base):
-    __tablename__ = "calves"
-    id = Column(Integer, primary_key=True, index=True)
-    tag = Column(String, unique=True, index=True)
-    tag_color = Column(String)
-    sex = Column(String)
-    birth_date = Column(String)
-    status = Column(String)  # Kept / Sold
-    role = Column(String, default="Calf")  # Calf / Heifer / Cow
-    photo = Column(String)
+    <input id="calfPhoto" type="file" accept="image/*" capture="environment">
 
-    cow_id = Column(Integer, ForeignKey("cows.id"))
-    bull_id = Column(Integer, ForeignKey("bulls.id"))
+    <button onclick="saveCalf()">Save Calf</button>
+</div>
 
-    cow = relationship("Cow")
-    bull = relationship("Bull")
-    vaccinations = relationship("Vaccination", back_populates="calf")
+<!-- ADD COW -->
+<div id="addCow" class="card hidden">
+    <h2>Add Cow</h2>
 
+    <input id="cowNumber" placeholder="Cow Number">
 
-class Vaccination(Base):
-    __tablename__ = "vaccinations"
-    id = Column(Integer, primary_key=True, index=True)
-    vaccine_name = Column(String)
-    vaccine_date = Column(String)
-    calf_id = Column(Integer, ForeignKey("calves.id"))
+    <select id="cowColor">
+        <option>Yellow</option>
+        <option>Red</option>
+        <option>Orange</option>
+        <option>White</option>
+    </select>
 
-    calf = relationship("Calf", back_populates="vaccinations")
+    <input id="cowPhoto" type="file" accept="image/*" capture="environment">
 
+    <button onclick="saveCow()">Save Cow</button>
+</div>
 
-class User(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String)
-    pin = Column(String)
+<!-- ADD BULL -->
+<div id="addBull" class="card hidden">
+    <h2>Add Bull</h2>
 
+    <input id="bullNumber" placeholder="Bull Number">
+    <input id="bullNotes" placeholder="Notes">
 
-Base.metadata.create_all(bind=engine)
+    <input id="bullPhoto" type="file" accept="image/*" capture="environment">
 
-# ---------------- BULLS ----------------
+    <button onclick="saveBull()">Save Bull</button>
+</div>
 
-@app.post("/bulls")
-def add_bull(
-    bull_number: str = Form(...),
-    notes: str = Form(None),
-    photo: UploadFile = File(None)
-):
-    db = SessionLocal()
-    filename = None
+<!-- SEARCH -->
+<div id="searchBox" class="card hidden">
+    <h2>Search</h2>
 
-    if photo:
-        filename = f"uploads/bulls/{photo.filename}"
-        with open(filename, "wb") as buffer:
-            shutil.copyfileobj(photo.file, buffer)
+    <input id="searchInput" placeholder="Enter tag or number" onkeyup="doSearch()">
 
-    bull = Bull(bull_number=bull_number, notes=notes, photo=filename)
-    db.add(bull)
-    db.commit()
-    return {"status": "Bull added"}
+    <div id="results"></div>
+</div>
 
+<script>
+const API = ""; // same server
 
-@app.get("/bulls")
-def get_bulls():
-    db = SessionLocal()
-    return db.query(Bull).all()
+function hideAll() {
+    document.querySelectorAll('.card').forEach(c => c.classList.add('hidden'));
+}
 
+function showAddCalf() {
+    hideAll();
+    loadCows();
+    loadBulls();
+    document.getElementById('addCalf').classList.remove('hidden');
+}
 
-# ---------------- COWS ----------------
+function showAddCow() {
+    hideAll();
+    document.getElementById('addCow').classList.remove('hidden');
+}
 
-@app.post("/cows")
-def add_cow(
-    cow_number: str = Form(...),
-    tag_color: str = Form(...),
-    photo: UploadFile = File(None)
-):
-    db = SessionLocal()
-    filename = None
+function showAddBull() {
+    hideAll();
+    document.getElementById('addBull').classList.remove('hidden');
+}
 
-    if photo:
-        filename = f"uploads/cows/{photo.filename}"
-        with open(filename, "wb") as buffer:
-            shutil.copyfileobj(photo.file, buffer)
+function showSearch() {
+    hideAll();
+    document.getElementById('searchBox').classList.remove('hidden');
+}
 
-    cow = Cow(cow_number=cow_number, tag_color=tag_color, photo=filename)
-    db.add(cow)
-    db.commit()
-    return {"status": "Cow added"}
+// ---------------- LOAD DROPDOWNS ----------------
 
+function loadCows() {
+    fetch('/cows')
+        .then(r => r.json())
+        .then(data => {
+            let sel = document.getElementById('cowSelect');
+            sel.innerHTML = '<option value="">Select Cow</option>';
+            data.forEach(c => {
+                sel.innerHTML += `<option value="${c.id}">${c.cow_number} (${c.tag_color})</option>`;
+            });
+        });
+}
 
-@app.get("/cows")
-def get_cows():
-    db = SessionLocal()
-    return db.query(Cow).all()
+function loadBulls() {
+    fetch('/bulls')
+        .then(r => r.json())
+        .then(data => {
+            let sel = document.getElementById('bullSelect');
+            sel.innerHTML = '<option value="">Select Bull</option>';
+            data.forEach(b => {
+                sel.innerHTML += `<option value="${b.id}">${b.bull_number}</option>`;
+            });
+        });
+}
 
+// ---------------- SAVE FUNCTIONS ----------------
 
-# ---------------- CALVES ----------------
+function saveCalf() {
+    let fd = new FormData();
+    fd.append('tag', calfTag.value);
+    fd.append('tag_color', tagColor.value);
+    fd.append('sex', sex.value);
+    fd.append('birth_date', birthDate.value);
+    fd.append('status', status.value);
+    fd.append('cow_id', cowSelect.value);
+    fd.append('bull_id', bullSelect.value);
+    if (calfPhoto.files[0]) fd.append('photo', calfPhoto.files[0]);
 
-@app.post("/calves")
-def add_calf(
-    tag: str = Form(...),
-    tag_color: str = Form(...),
-    sex: str = Form(...),
-    birth_date: str = Form(...),
-    status: str = Form(...),
-    cow_id: int = Form(...),
-    bull_id: int = Form(...),
-    photo: UploadFile = File(None)
-):
-    db = SessionLocal()
-    filename = None
+    fetch('/calves', { method: 'POST', body: fd })
+        .then(() => {
+            alert('Calf saved');
+            hideAll();
+        });
+}
 
-    if photo:
-        filename = f"uploads/calves/{photo.filename}"
-        with open(filename, "wb") as buffer:
-            shutil.copyfileobj(photo.file, buffer)
+function saveCow() {
+    let fd = new FormData();
+    fd.append('cow_number', cowNumber.value);
+    fd.append('tag_color', cowColor.value);
+    if (cowPhoto.files[0]) fd.append('photo', cowPhoto.files[0]);
 
-    calf = Calf(
-        tag=tag,
-        tag_color=tag_color,
-        sex=sex,
-        birth_date=birth_date,
-        status=status,
-        cow_id=cow_id,
-        bull_id=bull_id,
-        photo=filename
-    )
+    fetch('/cows', { method: 'POST', body: fd })
+        .then(() => {
+            alert('Cow saved');
+            hideAll();
+        });
+}
 
-    db.add(calf)
-    db.commit()
-    return {"status": "Calf added"}
+function saveBull() {
+    let fd = new FormData();
+    fd.append('bull_number', bullNumber.value);
+    fd.append('notes', bullNotes.value);
+    if (bullPhoto.files[0]) fd.append('photo', bullPhoto.files[0]);
 
+    fetch('/bulls', { method: 'POST', body: fd })
+        .then(() => {
+            alert('Bull saved');
+            hideAll();
+        });
+}
 
-@app.get("/calves")
-def get_calves():
-    db = SessionLocal()
-    return db.query(Calf).all()
+// ---------------- SEARCH ----------------
 
-
-# ---------------- VACCINATIONS ----------------
-
-@app.post("/vaccinations")
-def add_vaccination(
-    calf_id: int = Form(...),
-    vaccine_name: str = Form(...),
-    vaccine_date: str = Form(...)
-):
-    db = SessionLocal()
-    v = Vaccination(
-        calf_id=calf_id,
-        vaccine_name=vaccine_name,
-        vaccine_date=vaccine_date
-    )
-    db.add(v)
-    db.commit()
-    return {"status": "Vaccine added"}
-
-
-# ---------------- PROMOTIONS ----------------
-
-@app.post("/calves/{calf_id}/promote/heifer")
-def promote_to_heifer(calf_id: int):
-    db = SessionLocal()
-    calf = db.query(Calf).get(calf_id)
-
-    if not calf:
-        return {"error": "Calf not found"}
-
-    if calf.sex != "Female":
-        return {"error": "Only females can be heifers"}
-
-    calf.role = "Heifer"
-    calf.status = "Kept"
-    db.commit()
-    return {"status": "Promoted to Heifer"}
-
-
-@app.post("/calves/{calf_id}/promote/cow")
-def promote_to_cow(calf_id: int):
-    db = SessionLocal()
-    calf = db.query(Calf).get(calf_id)
-
-    if not calf:
-        return {"error": "Calf not found"}
-
-    if calf.role != "Heifer":
-        return {"error": "Only heifers can become cows"}
-
-    new_cow = Cow(
-        cow_number=calf.tag,
-        tag_color=calf.tag_color,
-        photo=calf.photo
-    )
-
-    db.add(new_cow)
-    db.commit()
-
-    calf.role = "Cow"
-    calf.cow_id = new_cow.id
-    db.commit()
-
-    return {"status": "Promoted to Cow"}
-
-
-# ---------------- SEARCH ----------------
-
-@app.get("/search/{query}")
-def search(query: str):
-    db = SessionLocal()
-
-    cows = db.query(Cow).filter(Cow.cow_number.contains(query)).all()
-    calves = db.query(Calf).filter(Calf.tag.contains(query)).all()
-    bulls = db.query(Bull).filter(Bull.bull_number.contains(query)).all()
-
-    return {
-        "cows": cows,
-        "calves": calves,
-        "bulls": bulls
+function doSearch() {
+    let q = searchInput.value;
+    if (q.length < 1) {
+        results.innerHTML = '';
+        return;
     }
+
+    fetch('/search/' + q)
+        .then(r => r.json())
+        .then(data => {
+            let html = '';
+
+            data.cows.forEach(c => {
+                html += `<div class="card">
+                            <b>Cow:</b> ${c.cow_number} (${c.tag_color})
+                         </div>`;
+            });
+
+            data.calves.forEach(c => {
+                html += `<div class="card">
+                            <b>${c.role}:</b> ${c.tag} (${c.tag_color})<br>
+                            Status: ${c.status}<br>
+                            <button class="small-btn secondary" onclick="promoteHeifer(${c.id})">Promote to Heifer</button>
+                            <button class="small-btn warn" onclick="promoteCow(${c.id})">Promote to Cow</button>
+                         </div>`;
+            });
+
+            data.bulls.forEach(b => {
+                html += `<div class="card">
+                            <b>Bull:</b> ${b.bull_number}
+                         </div>`;
+            });
+
+            results.innerHTML = html;
+        });
+}
+
+// ---------------- PROMOTIONS ----------------
+
+function promoteHeifer(id) {
+    fetch(`/calves/${id}/promote/heifer`, { method: 'POST' })
+        .then(() => alert('Promoted to Heifer'));
+}
+
+function promoteCow(id) {
+    fetch(`/calves/${id}/promote/cow`, { method: 'POST' })
+        .then(() => alert('Promoted to Cow'));
+}
+</script>
+
+</body>
+</html>
