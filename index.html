@@ -100,7 +100,7 @@ let calves=JSON.parse(localStorage.calves||"[]");
 let heifers=JSON.parse(localStorage.heifers||"[]");
 let cows=JSON.parse(localStorage.cows||"[]");
 let bulls=JSON.parse(localStorage.bulls||"[]");
-let current=null;
+let current={};
 
 function saveAll(){
   localStorage.calves=JSON.stringify(calves);
@@ -136,103 +136,79 @@ function refresh(){
       🐂 Bull ${b}
     </div>`).join("");
 
-  dam.innerHTML=cows.map(c=>`<option>${c.tag||"Untitled Cow"}</option>`).join("");
+  dam.innerHTML=cows.map(c=>`<option>${c.tag||""}</option>`).join("");
   sire.innerHTML=bulls.map(b=>`<option>${b}</option>`).join("");
 }
 
 function saveCalf(){
-  calves.push({
-    id:Date.now(),
-    sex:calfSex.value,
-    birth:calfBirth.value,
-    dam:dam.value,
-    sire:sire.value,
-    status:status.value
-  });
+  calves.push({id:Date.now(),sex:calfSex.value,birth:calfBirth.value,dam:dam.value,sire:sire.value,status:status.value});
   saveAll(); show('calves');
 }
 
 function saveCow(){
-  cows.push({
-    id:Date.now(),
-    tag:cowTag.value,
-    birth:cowBirth.value,
-    color:cowColor.value
-  });
+  cows.push({id:Date.now(),tag:cowTag.value,birth:cowBirth.value,color:cowColor.value});
   saveAll(); show('cows');
 }
 
-function saveBull(){
-  bulls.push(bullNum.value);
-  saveAll(); show('bulls');
-}
+function saveBull(){bulls.push(bullNum.value);saveAll();show('bulls')}
 
 function openCalf(id){
-  current=id;
   let c=calves.find(x=>x.id===id);
   detail.innerHTML=`
-    <h2>Calf</h2>
-    Sex: ${c.sex}<br>
-    Born: ${c.birth}<br>
-    Status: ${c.status}<br>
-    <button class="primary small" onclick="promoteCalf(${id})">Promote to Heifer</button>
-    <button class="danger small" onclick="deleteCalf(${id})">Delete</button>
+    <h2>Edit Calf</h2>
+    <select id="eSex"><option ${c.sex=="Female"?"selected":""}>Female</option><option ${c.sex=="Male"?"selected":""}>Male</option></select>
+    <input type="date" id="eBirth" value="${c.birth||""}">
+    <select id="eStatus"><option ${c.status=="Kept"?"selected":""}>Kept</option><option ${c.status=="Sold"?"selected":""}>Sold</option></select>
+    <button class="primary" onclick="updateCalf(${id})">Save Changes</button>
     <button class="secondary" onclick="show('calves')">Back</button>
   `;
   show('detail');
 }
 
-function promoteCalf(id){
+function updateCalf(id){
   let c=calves.find(x=>x.id===id);
-  heifers.push({...c});
-  calves=calves.filter(x=>x.id!==id);
-  saveAll(); show('heifers');
+  c.sex=eSex.value;c.birth=eBirth.value;c.status=eStatus.value;
+  saveAll(); show('calves');
 }
 
 function openHeifer(id){
   let h=heifers.find(x=>x.id===id);
   detail.innerHTML=`
-    <h2>Heifer</h2>
-    Born: ${h.birth}<br>
-    <button class="primary small" onclick="promoteHeifer(${id})">Promote to Cow</button>
+    <h2>Edit Heifer</h2>
+    <input type="date" id="eBirth" value="${h.birth||""}">
+    <button class="primary" onclick="updateHeifer(${id})">Save</button>
     <button class="secondary" onclick="show('heifers')">Back</button>
   `;
   show('detail');
 }
 
-function promoteHeifer(id){
-  let h=heifers.find(x=>x.id===id);
-  cows.push({...h,tag:""});
-  heifers=heifers.filter(x=>x.id!==id);
-  saveAll(); show('cows');
+function updateHeifer(id){
+  heifers.find(h=>h.id===id).birth=eBirth.value;
+  saveAll(); show('heifers');
 }
 
 function openCow(id){
-  let cow=cows.find(c=>c.id===id);
-  let her=calves.filter(c=>c.dam===cow.tag);
+  let c=cows.find(x=>x.id===id);
   detail.innerHTML=`
-    <h2>🐄 Cow ${cow.tag||"(no tag)"}</h2>
-    Born: ${cow.birth||"Unknown"}<br>
-    Calves Produced: ${her.length}
-    ${her.map(c=>`<div class="badge">${c.sex} | ${c.status}</div>`).join("")}
-    <button class="danger small" onclick="deleteCow(${id})">Delete</button>
+    <h2>Edit Cow</h2>
+    <input id="eTag" value="${c.tag||""}" placeholder="Tag">
+    <input type="date" id="eBirth" value="${c.birth||""}">
+    <button class="primary" onclick="updateCow(${id})">Save</button>
     <button class="secondary" onclick="show('cows')">Back</button>
   `;
   show('detail');
 }
 
-function openBull(b){
-  let his=calves.filter(c=>c.sire===b);
-  detail.innerHTML=`
-    <h2>🐂 Bull ${b}</h2>
-    Calves Sired: ${his.length}
-    <button class="secondary" onclick="show('bulls')">Back</button>
-  `;
-  show('detail');
+function updateCow(id){
+  let c=cows.find(x=>x.id===id);
+  c.tag=eTag.value;c.birth=eBirth.value;
+  saveAll(); show('cows');
 }
 
-function deleteCalf(id){calves=calves.filter(c=>c.id!==id);saveAll();show('calves')}
-function deleteCow(id){cows=cows.filter(c=>c.id!==id);saveAll();show('cows')}
+function openBull(b){
+  detail.innerHTML=`<h2>Bull ${b}</h2><button class="secondary" onclick="show('bulls')">Back</button>`;
+  show('detail');
+}
 </script>
 
 </body>
