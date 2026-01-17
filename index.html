@@ -8,17 +8,16 @@
 <style>
 :root{
   --bg:#f2f2f2;--card:#fff;
-  --primary:#2e7d32;--secondary:#0277bd;
-  --danger:#c62828;
+  --primary:#2e7d32;--secondary:#0277bd;--danger:#c62828;
 }
 body{margin:0;padding:15px;font-family:Arial;background:var(--bg)}
 h1{text-align:center}
-button{width:100%;padding:15px;margin:6px 0;font-size:17px;border-radius:10px;border:none;color:#fff}
+button{width:100%;padding:14px;margin:6px 0;font-size:16px;border-radius:10px;border:none;color:#fff}
 .primary{background:var(--primary)}
 .secondary{background:var(--secondary)}
 .danger{background:var(--danger)}
 .small{width:70%;margin:8px auto}
-input,select{width:100%;padding:14px;margin:6px 0;border-radius:8px;border:1px solid #ccc}
+input,select{width:100%;padding:12px;margin:6px 0;border-radius:8px;border:1px solid #ccc}
 .card{background:var(--card);padding:15px;border-radius:12px;margin-top:12px}
 .list{cursor:pointer}
 .hidden{display:none}
@@ -32,6 +31,7 @@ input,select{width:100%;padding:14px;margin:6px 0;border-radius:8px;border:1px s
 
 <div id="screens">
 
+<!-- HOME -->
 <div id="home">
   <button class="primary" onclick="show('calves')">Calves</button>
   <button class="secondary" onclick="show('heifers')">Heifers</button>
@@ -39,33 +39,17 @@ input,select{width:100%;padding:14px;margin:6px 0;border-radius:8px;border:1px s
   <button class="secondary" onclick="show('bulls')">Bulls</button>
 </div>
 
-<div id="calves" class="hidden">
-  <button class="primary" onclick="show('addCalf')">➕ Add Calf</button>
-  <div id="calfList"></div>
-  <button class="secondary" onclick="show('home')">Back</button>
-</div>
+<!-- LIST SCREENS -->
+<div id="calves" class="hidden"><div id="calfList"></div><button class="secondary" onclick="show('home')">Back</button></div>
+<div id="heifers" class="hidden"><div id="heiferList"></div><button class="secondary" onclick="show('home')">Back</button></div>
+<div id="cows" class="hidden"><button class="primary" onclick="show('addCow')">➕ Add Cow</button><div id="cowList"></div><button class="secondary" onclick="show('home')">Back</button></div>
+<div id="bulls" class="hidden"><button class="primary" onclick="show('addBull')">➕ Add Bull</button><div id="bullList"></div><button class="secondary" onclick="show('home')">Back</button></div>
 
-<div id="heifers" class="hidden">
-  <div id="heiferList"></div>
-  <button class="secondary" onclick="show('home')">Back</button>
-</div>
-
-<div id="cows" class="hidden">
-  <button class="primary" onclick="show('addCow')">➕ Add Cow</button>
-  <div id="cowList"></div>
-  <button class="secondary" onclick="show('home')">Back</button>
-</div>
-
-<div id="bulls" class="hidden">
-  <button class="primary" onclick="show('addBull')">➕ Add Bull</button>
-  <div id="bullList"></div>
-  <button class="secondary" onclick="show('home')">Back</button>
-</div>
-
+<!-- ADD CALF -->
 <div id="addCalf" class="card hidden">
   <h2>Add Calf</h2>
-  <select id="calfSex"><option>Female</option><option>Male</option></select>
-  <input type="date" id="calfBirth">
+  <select id="sex"><option>Female</option><option>Male</option></select>
+  <input type="date" id="birth">
   <select id="dam"></select>
   <select id="sire"></select>
   <select id="status"><option>Kept</option><option>Sold</option></select>
@@ -73,17 +57,17 @@ input,select{width:100%;padding:14px;margin:6px 0;border-radius:8px;border:1px s
   <button class="secondary" onclick="show('calves')">Cancel</button>
 </div>
 
+<!-- ADD COW -->
 <div id="addCow" class="card hidden">
-  <h2>Add Cow</h2>
-  <input id="cowTag" placeholder="Tag (optional)">
+  <h2>Add Existing Cow</h2>
+  <input id="tag" placeholder="Tag (optional)">
   <input type="date" id="cowBirth">
-  <select id="cowColor">
-    <option>Yellow</option><option>Red</option><option>Orange</option><option>White</option>
-  </select>
+  <select id="color"><option>Yellow</option><option>Red</option><option>Orange</option><option>White</option></select>
   <button class="primary" onclick="saveCow()">Save</button>
   <button class="secondary" onclick="show('cows')">Cancel</button>
 </div>
 
+<!-- ADD BULL -->
 <div id="addBull" class="card hidden">
   <h2>Add Bull</h2>
   <input id="bullNum" placeholder="Bull Number">
@@ -96,119 +80,92 @@ input,select{width:100%;padding:14px;margin:6px 0;border-radius:8px;border:1px s
 </div>
 
 <script>
-let calves=JSON.parse(localStorage.calves||"[]");
-let heifers=JSON.parse(localStorage.heifers||"[]");
-let cows=JSON.parse(localStorage.cows||"[]");
-let bulls=JSON.parse(localStorage.bulls||"[]");
-let current={};
+let animals = JSON.parse(localStorage.animals || "[]");
+let bulls = JSON.parse(localStorage.bulls || "[]");
+let current = null;
 
-function saveAll(){
-  localStorage.calves=JSON.stringify(calves);
-  localStorage.heifers=JSON.stringify(heifers);
-  localStorage.cows=JSON.stringify(cows);
-  localStorage.bulls=JSON.stringify(bulls);
-}
+const saveAll = () => {
+  localStorage.animals = JSON.stringify(animals);
+  localStorage.bulls = JSON.stringify(bulls);
+};
 
-function show(id){
+const show = id => {
   document.querySelectorAll("#screens>div").forEach(d=>d.classList.add("hidden"));
   document.getElementById(id).classList.remove("hidden");
   refresh();
-}
+};
 
-function refresh(){
-  calfList.innerHTML=calves.map(c=>`
-    <div class="card list" onclick="openCalf(${c.id})">
-      ${c.sex} calf | ${c.status}
-    </div>`).join("");
+const refresh = () => {
+  calfList.innerHTML = animals.filter(a=>a.role==="calf").map(a=>card(a)).join("");
+  heiferList.innerHTML = animals.filter(a=>a.role==="heifer").map(a=>card(a)).join("");
+  cowList.innerHTML = animals.filter(a=>a.role==="cow").map(a=>card(a)).join("");
+  bullList.innerHTML = bulls.map(b=>`<div class="card list" onclick="openBull('${b}')">🐂 Bull ${b}</div>`).join("");
 
-  heiferList.innerHTML=heifers.map(h=>`
-    <div class="card list" onclick="openHeifer(${h.id})">
-      Heifer | Born ${h.birth||"?"}
-    </div>`).join("");
+  dam.innerHTML = animals.filter(a=>a.role==="cow").map(a=>`<option>${a.tag||"Untitled Cow"}</option>`).join("");
+  sire.innerHTML = bulls.map(b=>`<option>${b}</option>`).join("");
+};
 
-  cowList.innerHTML=cows.map(c=>`
-    <div class="card list" onclick="openCow(${c.id})">
-      🐄 Cow ${c.tag||"(no tag)"}
-    </div>`).join("");
+const card = a => `
+<div class="card list" onclick="openAnimal(${a.id})">
+  ${a.role.toUpperCase()} | ${a.tag||"No Tag"} | ${a.status||""}
+</div>`;
 
-  bullList.innerHTML=bulls.map(b=>`
-    <div class="card list" onclick="openBull('${b}')">
-      🐂 Bull ${b}
-    </div>`).join("");
+const saveCalf = () => {
+  animals.push({
+    id:Date.now(), role:"calf",
+    sex:sex.value, birth:birth.value,
+    dam:dam.value, sire:sire.value,
+    status:status.value,
+    tag:"", color:"", vaccines:[]
+  });
+  saveAll(); show("calves");
+};
 
-  dam.innerHTML=cows.map(c=>`<option>${c.tag||""}</option>`).join("");
-  sire.innerHTML=bulls.map(b=>`<option>${b}</option>`).join("");
-}
+const saveCow = () => {
+  animals.push({
+    id:Date.now(), role:"cow",
+    sex:"Female",
+    birth:cowBirth.value,
+    tag:tag.value, color:color.value,
+    vaccines:[], calves:[]
+  });
+  saveAll(); show("cows");
+};
 
-function saveCalf(){
-  calves.push({id:Date.now(),sex:calfSex.value,birth:calfBirth.value,dam:dam.value,sire:sire.value,status:status.value});
-  saveAll(); show('calves');
-}
+const saveBull = () => { bulls.push(bullNum.value); saveAll(); show("bulls"); };
 
-function saveCow(){
-  cows.push({id:Date.now(),tag:cowTag.value,birth:cowBirth.value,color:cowColor.value});
-  saveAll(); show('cows');
-}
-
-function saveBull(){bulls.push(bullNum.value);saveAll();show('bulls')}
-
-function openCalf(id){
-  let c=calves.find(x=>x.id===id);
-  detail.innerHTML=`
-    <h2>Edit Calf</h2>
-    <select id="eSex"><option ${c.sex=="Female"?"selected":""}>Female</option><option ${c.sex=="Male"?"selected":""}>Male</option></select>
-    <input type="date" id="eBirth" value="${c.birth||""}">
-    <select id="eStatus"><option ${c.status=="Kept"?"selected":""}>Kept</option><option ${c.status=="Sold"?"selected":""}>Sold</option></select>
-    <button class="primary" onclick="updateCalf(${id})">Save Changes</button>
-    <button class="secondary" onclick="show('calves')">Back</button>
+const openAnimal = id => {
+  current = animals.find(a=>a.id===id);
+  detail.innerHTML = `
+    <h2>${current.role.toUpperCase()}</h2>
+    Tag: <input value="${current.tag||""}" oninput="current.tag=this.value"><br>
+    Color: <input value="${current.color||""}" oninput="current.color=this.value"><br>
+    Born: ${current.birth||"Unknown"}<br>
+    Status: ${current.status||""}<br>
+    <button class="primary small" onclick="promote()">Promote</button>
+    <button class="danger small" onclick="remove()">Delete</button>
+    <button class="secondary" onclick="show('${current.role}s')">Back</button>
   `;
-  show('detail');
-}
+  show("detail");
+};
 
-function updateCalf(id){
-  let c=calves.find(x=>x.id===id);
-  c.sex=eSex.value;c.birth=eBirth.value;c.status=eStatus.value;
-  saveAll(); show('calves');
-}
+const promote = () => {
+  if(current.role==="calf" && current.sex==="Female") current.role="heifer";
+  else if(current.role==="heifer") current.role="cow";
+  saveAll(); show(current.role+"s");
+};
 
-function openHeifer(id){
-  let h=heifers.find(x=>x.id===id);
-  detail.innerHTML=`
-    <h2>Edit Heifer</h2>
-    <input type="date" id="eBirth" value="${h.birth||""}">
-    <button class="primary" onclick="updateHeifer(${id})">Save</button>
-    <button class="secondary" onclick="show('heifers')">Back</button>
-  `;
-  show('detail');
-}
+const remove = () => {
+  animals = animals.filter(a=>a.id!==current.id);
+  saveAll(); show("home");
+};
 
-function updateHeifer(id){
-  heifers.find(h=>h.id===id).birth=eBirth.value;
-  saveAll(); show('heifers');
-}
+const openBull = b => {
+  detail.innerHTML = `<h2>🐂 Bull ${b}</h2><button class="secondary" onclick="show('bulls')">Back</button>`;
+  show("detail");
+};
 
-function openCow(id){
-  let c=cows.find(x=>x.id===id);
-  detail.innerHTML=`
-    <h2>Edit Cow</h2>
-    <input id="eTag" value="${c.tag||""}" placeholder="Tag">
-    <input type="date" id="eBirth" value="${c.birth||""}">
-    <button class="primary" onclick="updateCow(${id})">Save</button>
-    <button class="secondary" onclick="show('cows')">Back</button>
-  `;
-  show('detail');
-}
-
-function updateCow(id){
-  let c=cows.find(x=>x.id===id);
-  c.tag=eTag.value;c.birth=eBirth.value;
-  saveAll(); show('cows');
-}
-
-function openBull(b){
-  detail.innerHTML=`<h2>Bull ${b}</h2><button class="secondary" onclick="show('bulls')">Back</button>`;
-  show('detail');
-}
+show("home");
 </script>
 
 </body>
