@@ -18,6 +18,7 @@ button{width:100%;padding:15px;margin:6px 0;font-size:17px;border-radius:10px;bo
 .warn{background:var(--warn)} .danger{background:var(--danger)}
 input,select{width:100%;padding:14px;margin:6px 0;border-radius:8px;border:1px solid #ccc}
 .card{background:var(--card);padding:15px;border-radius:12px;margin-top:12px}
+.list-card{cursor:pointer}
 .hidden{display:none}
 </style>
 </head>
@@ -26,7 +27,7 @@ input,select{width:100%;padding:14px;margin:6px 0;border-radius:8px;border:1px s
 
 <h1>🐄 Cattle Tracker</h1>
 
-<!-- NAV -->
+<!-- HOME -->
 <div id="home">
   <button class="primary" onclick="show('calves')">🐄 Calves</button>
   <button class="secondary" onclick="show('cows')">🐄 Cows</button>
@@ -40,7 +41,21 @@ input,select{width:100%;padding:14px;margin:6px 0;border-radius:8px;border:1px s
   <button class="secondary" onclick="goHome()">Back</button>
 </div>
 
-<!-- ADD CALF -->
+<!-- COWS -->
+<div id="cows" class="hidden">
+  <button class="primary" onclick="show('addCow')">➕ Add Cow</button>
+  <div id="cowList"></div>
+  <button class="secondary" onclick="goHome()">Back</button>
+</div>
+
+<!-- BULLS -->
+<div id="bulls" class="hidden">
+  <button class="primary" onclick="show('addBull')">➕ Add Bull</button>
+  <div id="bullList"></div>
+  <button class="secondary" onclick="goHome()">Back</button>
+</div>
+
+<!-- ADD SCREENS -->
 <div id="addCalf" class="card hidden">
   <h2>Add Calf</h2>
   <select id="calfSex"><option>Female</option><option>Male</option></select>
@@ -51,32 +66,14 @@ input,select{width:100%;padding:14px;margin:6px 0;border-radius:8px;border:1px s
   <button class="secondary" onclick="show('calves')">Cancel</button>
 </div>
 
-<!-- COWS -->
-<div id="cows" class="hidden">
-  <button class="primary" onclick="show('addCow')">➕ Add Cow</button>
-  <div id="cowList"></div>
-  <button class="secondary" onclick="goHome()">Back</button>
-</div>
-
-<!-- ADD COW -->
 <div id="addCow" class="card hidden">
   <h2>Add Cow</h2>
   <input id="cowTag" placeholder="Cow Tag Number">
-  <select id="cowColor">
-    <option>Yellow</option><option>Red</option><option>Orange</option><option>White</option>
-  </select>
+  <select id="cowColor"><option>Yellow</option><option>Red</option><option>Orange</option><option>White</option></select>
   <button class="primary" onclick="saveCow()">Save Cow</button>
   <button class="secondary" onclick="show('cows')">Cancel</button>
 </div>
 
-<!-- BULLS -->
-<div id="bulls" class="hidden">
-  <button class="primary" onclick="show('addBull')">➕ Add Bull</button>
-  <div id="bullList"></div>
-  <button class="secondary" onclick="goHome()">Back</button>
-</div>
-
-<!-- ADD BULL -->
 <div id="addBull" class="card hidden">
   <h2>Add Bull</h2>
   <input id="bullNum" placeholder="Bull Number">
@@ -84,10 +81,14 @@ input,select{width:100%;padding:14px;margin:6px 0;border-radius:8px;border:1px s
   <button class="secondary" onclick="show('bulls')">Cancel</button>
 </div>
 
+<!-- DETAIL -->
+<div id="detail" class="card hidden"></div>
+
 <script>
 let calves=JSON.parse(localStorage.calves||"[]");
 let cows=JSON.parse(localStorage.cows||"[]");
 let bulls=JSON.parse(localStorage.bulls||"[]");
+let selected=null;
 
 function saveAll(){
   localStorage.calves=JSON.stringify(calves);
@@ -99,9 +100,21 @@ function show(id){hideAll();document.getElementById(id).classList.remove("hidden
 function goHome(){hideAll();home.classList.remove("hidden")}
 
 function refresh(){
-  cowList.innerHTML=cows.map(c=>`<div class="card">🐄 ${c.tag} (${c.color})</div>`).join("");
-  bullList.innerHTML=bulls.map(b=>`<div class="card">🐂 Bull ${b}</div>`).join("");
-  calfList.innerHTML=calves.map(c=>`<div class="card">${c.sex} calf | Dam ${c.dam} | Sire ${c.sire}</div>`).join("");
+  cowList.innerHTML=cows.map(c=>`
+    <div class="card list-card" onclick="openCow('${c.tag}')">
+      🐄 Cow ${c.tag} (${c.color})
+    </div>`).join("");
+
+  bullList.innerHTML=bulls.map(b=>`
+    <div class="card list-card" onclick="openBull('${b}')">
+      🐂 Bull ${b}
+    </div>`).join("");
+
+  calfList.innerHTML=calves.map(c=>`
+    <div class="card list-card" onclick="openCalf(${c.id})">
+      ${c.sex} calf | Dam ${c.dam} | Sire ${c.sire}
+    </div>`).join("");
+
   damSelect.innerHTML=cows.map(c=>`<option>${c.tag}</option>`).join("");
   sireSelect.innerHTML=bulls.map(b=>`<option>${b}</option>`).join("");
 }
@@ -109,8 +122,67 @@ function refresh(){
 function saveCow(){cows.push({tag:cowTag.value,color:cowColor.value});saveAll();show('cows')}
 function saveBull(){bulls.push(bullNum.value);saveAll();show('bulls')}
 function saveCalf(){
-  calves.push({sex:calfSex.value,birth:birthDate.value,dam:damSelect.value,sire:sireSelect.value});
+  calves.push({id:Date.now(),sex:calfSex.value,birth:birthDate.value,dam:damSelect.value,sire:sireSelect.value});
   saveAll();show('calves')
+}
+
+function openCow(tag){
+  selected={type:"cow",tag};
+  let herCalves=calves.filter(c=>c.dam===tag);
+  detail.innerHTML=`
+    <h2>🐄 Cow ${tag}</h2>
+    Calves Produced: ${herCalves.length}<br><br>
+    ${herCalves.map(c=>`<div class="card list-card" onclick="openCalf(${c.id})">Calf ${c.id}</div>`).join("")}
+    <button class="danger" onclick="deleteCow('${tag}')">Delete Cow</button>
+    <button class="secondary" onclick="show('cows')">Back</button>
+  `;
+  show('detail');
+}
+
+function openBull(num){
+  selected={type:"bull",num};
+  let hisCalves=calves.filter(c=>c.sire===num);
+  detail.innerHTML=`
+    <h2>🐂 Bull ${num}</h2>
+    Calves Sired: ${hisCalves.length}<br><br>
+    ${hisCalves.map(c=>`<div class="card list-card" onclick="openCalf(${c.id})">Calf ${c.id}</div>`).join("")}
+    <button class="danger" onclick="deleteBull('${num}')">Delete Bull</button>
+    <button class="secondary" onclick="show('bulls')">Back</button>
+  `;
+  show('detail');
+}
+
+function openCalf(id){
+  let c=calves.find(x=>x.id===id);
+  detail.innerHTML=`
+    <h2>🐄 Calf</h2>
+    Sex: ${c.sex}<br>
+    Birth: ${c.birth}<br>
+    Dam: ${c.dam}<br>
+    Sire: ${c.sire}<br><br>
+    <button class="danger" onclick="deleteCalf(${id})">Delete Calf</button>
+    <button class="secondary" onclick="show('calves')">Back</button>
+  `;
+  show('detail');
+}
+
+function deleteCow(tag){
+  if(confirm("Delete this cow?")){
+    cows=cows.filter(c=>c.tag!==tag);
+    saveAll();show('cows')
+  }
+}
+function deleteBull(num){
+  if(confirm("Delete this bull?")){
+    bulls=bulls.filter(b=>b!==num);
+    saveAll();show('bulls')
+  }
+}
+function deleteCalf(id){
+  if(confirm("Delete this calf?")){
+    calves=calves.filter(c=>c.id!==id);
+    saveAll();show('calves')
+  }
 }
 </script>
 
