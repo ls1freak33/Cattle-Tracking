@@ -30,30 +30,37 @@ input,select{width:100%;padding:14px;margin:6px 0;border-radius:8px;border:1px s
 
 <h1>🐄 Cattle Tracker</h1>
 
+<div id="screens">
+
+<!-- HOME -->
 <div id="home">
-  <button class="primary" onclick="show('calves')">Calves</button>
-  <button class="secondary" onclick="show('cows')">Cows</button>
-  <button class="secondary" onclick="show('bulls')">Bulls</button>
+  <button class="primary" onclick="showScreen('calves')">Calves</button>
+  <button class="secondary" onclick="showScreen('cows')">Cows</button>
+  <button class="secondary" onclick="showScreen('bulls')">Bulls</button>
 </div>
 
+<!-- CALVES -->
 <div id="calves" class="hidden">
-  <button class="primary" onclick="show('addCalf')">➕ Add Calf</button>
+  <button class="primary" onclick="showScreen('addCalf')">➕ Add Calf</button>
   <div id="calfList"></div>
-  <button class="secondary" onclick="goHome()">Back</button>
+  <button class="secondary" onclick="showScreen('home')">Back</button>
 </div>
 
+<!-- COWS -->
 <div id="cows" class="hidden">
-  <button class="primary" onclick="show('addCow')">➕ Add Cow</button>
+  <button class="primary" onclick="showScreen('addCow')">➕ Add Cow</button>
   <div id="cowList"></div>
-  <button class="secondary" onclick="goHome()">Back</button>
+  <button class="secondary" onclick="showScreen('home')">Back</button>
 </div>
 
+<!-- BULLS -->
 <div id="bulls" class="hidden">
-  <button class="primary" onclick="show('addBull')">➕ Add Bull</button>
+  <button class="primary" onclick="showScreen('addBull')">➕ Add Bull</button>
   <div id="bullList"></div>
-  <button class="secondary" onclick="goHome()">Back</button>
+  <button class="secondary" onclick="showScreen('home')">Back</button>
 </div>
 
+<!-- ADD CALF -->
 <div id="addCalf" class="card hidden">
   <h2>Add Calf</h2>
   <select id="calfSex"><option>Female</option><option>Male</option></select>
@@ -62,25 +69,32 @@ input,select{width:100%;padding:14px;margin:6px 0;border-radius:8px;border:1px s
   <select id="sireSelect"></select>
   <select id="calfStatus"><option>Kept</option><option>Sold</option></select>
   <button class="primary" onclick="saveCalf()">Save Calf</button>
-  <button class="secondary" onclick="show('calves')">Cancel</button>
+  <button class="secondary" onclick="showScreen('calves')">Cancel</button>
 </div>
 
+<!-- ADD COW -->
 <div id="addCow" class="card hidden">
   <h2>Add Cow</h2>
   <input id="cowTag" placeholder="Cow Tag Number">
-  <select id="cowColor"><option>Yellow</option><option>Red</option><option>Orange</option><option>White</option></select>
+  <select id="cowColor">
+    <option>Yellow</option><option>Red</option><option>Orange</option><option>White</option>
+  </select>
   <button class="primary" onclick="saveCow()">Save Cow</button>
-  <button class="secondary" onclick="show('cows')">Cancel</button>
+  <button class="secondary" onclick="showScreen('cows')">Cancel</button>
 </div>
 
+<!-- ADD BULL -->
 <div id="addBull" class="card hidden">
   <h2>Add Bull</h2>
   <input id="bullNum" placeholder="Bull Number">
   <button class="primary" onclick="saveBull()">Save Bull</button>
-  <button class="secondary" onclick="show('bulls')">Cancel</button>
+  <button class="secondary" onclick="showScreen('bulls')">Cancel</button>
 </div>
 
+<!-- DETAIL -->
 <div id="detail" class="card hidden"></div>
+
+</div>
 
 <script>
 let calves=JSON.parse(localStorage.calves||"[]");
@@ -93,54 +107,85 @@ function saveAll(){
   localStorage.cows=JSON.stringify(cows);
   localStorage.bulls=JSON.stringify(bulls);
 }
-function hideAll(){document.querySelectorAll("body>div").forEach(d=>d.classList.add("hidden"))}
-function show(id){hideAll();document.getElementById(id).classList.remove("hidden");refresh()}
-function goHome(){hideAll();home.classList.remove("hidden")}
+
+function showScreen(id){
+  document.querySelectorAll("#screens > div")
+    .forEach(d=>d.classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+  refresh();
+}
 
 function refresh(){
   cowList.innerHTML=cows.map(c=>`
     <div class="card list-card" onclick="openCow('${c.tag}')">
       🐄 Cow ${c.tag} (${c.color})
     </div>`).join("");
+
   bullList.innerHTML=bulls.map(b=>`
-    <div class="card list-card" onclick="openBull('${b}')">🐂 Bull ${b}</div>`).join("");
+    <div class="card list-card" onclick="openBull('${b}')">
+      🐂 Bull ${b}
+    </div>`).join("");
+
   calfList.innerHTML=calves.map(c=>`
     <div class="card list-card" onclick="openCalf(${c.id})">
       ${c.sex} calf | ${c.status} | Dam ${c.dam}
     </div>`).join("");
+
   damSelect.innerHTML=cows.map(c=>`<option>${c.tag}</option>`).join("");
   sireSelect.innerHTML=bulls.map(b=>`<option>${b}</option>`).join("");
 }
 
-function saveCow(){cows.push({tag:cowTag.value,color:cowColor.value,vaccinations:[]});saveAll();show('cows')}
-function saveBull(){bulls.push(bullNum.value);saveAll();show('bulls')}
+function saveCow(){
+  cows.push({tag:cowTag.value,color:cowColor.value,vaccinations:[]});
+  saveAll(); showScreen('cows');
+}
+
+function saveBull(){
+  bulls.push(bullNum.value);
+  saveAll(); showScreen('bulls');
+}
+
 function saveCalf(){
   calves.push({
-    id:Date.now(),sex:calfSex.value,birth:birthDate.value,
-    dam:damSelect.value,sire:sireSelect.value,status:calfStatus.value,
+    id:Date.now(),
+    sex:calfSex.value,
+    birth:birthDate.value,
+    dam:damSelect.value,
+    sire:sireSelect.value,
+    status:calfStatus.value,
     vaccinations:[]
   });
-  saveAll();show('calves')
+  saveAll(); showScreen('calves');
 }
 
 function vaxList(a){
-  return a.vaccinations.map(v=>`<div class="vax">${v.name} — ${v.date}</div>`).join("")||"None";
+  return a.vaccinations.length
+    ? a.vaccinations.map(v=>`<div class="vax">${v.name} — ${v.date}</div>`).join("")
+    : "None";
 }
 
 function vaxForm(type){
   return `
-  <h3>Add Vaccination</h3>
-  <input id="vName" placeholder="Vaccine Name">
-  <input type="date" id="vDate">
-  <button class="primary" onclick="addVax('${type}')">Save Vaccination</button>`;
+    <h3>Add Vaccination</h3>
+    <input id="vName" placeholder="Vaccine Name">
+    <input type="date" id="vDate">
+    <button class="primary" onclick="addVax('${type}')">Save Vaccination</button>
+  `;
 }
 
 function addVax(type){
-  let list = type==="calf"?calves:type==="cow"?cows:bulls;
-  let obj = list.find(x=>x.id===current||x.tag===current||x===current);
+  let obj =
+    type==="calf" ? calves.find(c=>c.id===current) :
+    type==="cow"  ? cows.find(c=>c.tag===current) :
+                     bulls.find(b=>b===current);
+
+  if(!obj.vaccinations) obj.vaccinations=[];
   obj.vaccinations.push({name:vName.value,date:vDate.value});
   saveAll();
-  type==="calf"?openCalf(current):type==="cow"?openCow(current):openBull(current);
+
+  type==="calf"?openCalf(current):
+  type==="cow"?openCow(current):
+  openBull(current);
 }
 
 function openCalf(id){
@@ -148,12 +193,17 @@ function openCalf(id){
   let c=calves.find(x=>x.id===id);
   detail.innerHTML=`
     <h2>Calf</h2>
-    Sex: ${c.sex}<br>Birth: ${c.birth}<br>Dam: ${c.dam}<br>Sire: ${c.sire}<br>Status: ${c.status}
+    Sex: ${c.sex}<br>
+    Birth: ${c.birth}<br>
+    Dam: ${c.dam}<br>
+    Sire: ${c.sire}<br>
+    Status: ${c.status}
     <h3>Vaccinations</h3>${vaxList(c)}
     ${vaxForm("calf")}
     <button class="danger small-danger" onclick="deleteCalf(${id})">Delete Calf</button>
-    <button class="secondary" onclick="show('calves')">Back</button>`;
-  show('detail');
+    <button class="secondary" onclick="showScreen('calves')">Back</button>
+  `;
+  showScreen('detail');
 }
 
 function openCow(tag){
@@ -161,31 +211,48 @@ function openCow(tag){
   let cow=cows.find(c=>c.tag===tag);
   let her=calves.filter(c=>c.dam===tag);
   detail.innerHTML=`
-    <h2>Cow ${tag}</h2>
+    <h2>🐄 Cow ${tag}</h2>
     Calves Produced: ${her.length}
     ${her.map(c=>`<div class="vax">${c.sex} calf | ${c.status}</div>`).join("")}
     <h3>Vaccinations</h3>${vaxList(cow)}
     ${vaxForm("cow")}
     <button class="danger small-danger" onclick="deleteCow('${tag}')">Delete Cow</button>
-    <button class="secondary" onclick="show('cows')">Back</button>`;
-  show('detail');
+    <button class="secondary" onclick="showScreen('cows')">Back</button>
+  `;
+  showScreen('detail');
 }
 
 function openBull(num){
   current=num;
   let his=calves.filter(c=>c.sire===num);
   detail.innerHTML=`
-    <h2>Bull ${num}</h2>
+    <h2>🐂 Bull ${num}</h2>
     Calves Sired: ${his.length}
     ${his.map(c=>`<div class="vax">${c.sex} calf | ${c.status}</div>`).join("")}
     <button class="danger small-danger" onclick="deleteBull('${num}')">Delete Bull</button>
-    <button class="secondary" onclick="show('bulls')">Back</button>`;
-  show('detail');
+    <button class="secondary" onclick="showScreen('bulls')">Back</button>
+  `;
+  showScreen('detail');
 }
 
-function deleteCow(tag){if(confirm("Delete cow?")){cows=cows.filter(c=>c.tag!==tag);saveAll();show('cows')}}
-function deleteBull(num){if(confirm("Delete bull?")){bulls=bulls.filter(b=>b!==num);saveAll();show('bulls')}}
-function deleteCalf(id){if(confirm("Delete calf?")){calves=calves.filter(c=>c.id!==id);saveAll();show('calves')}}
+function deleteCow(tag){
+  if(confirm("Delete cow?")){
+    cows=cows.filter(c=>c.tag!==tag);
+    saveAll(); showScreen('cows');
+  }
+}
+function deleteBull(num){
+  if(confirm("Delete bull?")){
+    bulls=bulls.filter(b=>b!==num);
+    saveAll(); showScreen('bulls');
+  }
+}
+function deleteCalf(id){
+  if(confirm("Delete calf?")){
+    calves=calves.filter(c=>c.id!==id);
+    saveAll(); showScreen('calves');
+  }
+}
 </script>
 
 </body>
