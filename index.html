@@ -7,53 +7,21 @@
 
 <style>
 :root{
-  --bg:#f2f2f2;
-  --card:#fff;
-  --primary:#2e7d32;
-  --secondary:#0277bd;
-  --danger:#c62828;
+  --bg:#f2f2f2;--card:#fff;
+  --primary:#2e7d32;--secondary:#0277bd;--danger:#c62828;
 }
-body{
-  margin:0;
-  padding:15px;
-  font-family:Arial;
-  background:var(--bg)
-}
+body{margin:0;padding:15px;font-family:Arial;background:var(--bg)}
 h1{text-align:center}
-button{
-  width:100%;
-  padding:14px;
-  margin:6px 0;
-  font-size:16px;
-  border-radius:10px;
-  border:none;
-  color:#fff
-}
+button{width:100%;padding:14px;margin:6px 0;font-size:16px;border-radius:10px;border:none;color:#fff}
 .primary{background:var(--primary)}
 .secondary{background:var(--secondary)}
 .danger{background:var(--danger)}
 .small{width:70%;margin:8px auto}
-input,select{
-  width:100%;
-  padding:12px;
-  margin:6px 0;
-  border-radius:8px;
-  border:1px solid #ccc
-}
-.card{
-  background:var(--card);
-  padding:15px;
-  border-radius:12px;
-  margin-top:12px
-}
+input,select{width:100%;padding:12px;margin:6px 0;border-radius:8px;border:1px solid #ccc}
+.card{background:var(--card);padding:15px;border-radius:12px;margin-top:12px}
 .list{cursor:pointer}
 .hidden{display:none}
-.badge{
-  background:#e8f5e9;
-  padding:6px;
-  border-radius:6px;
-  margin:4px 0
-}
+.badge{background:#e8f5e9;padding:6px;border-radius:6px;margin:4px 0}
 </style>
 </head>
 
@@ -101,17 +69,12 @@ input,select{
 <!-- ADD CALF -->
 <div id="addCalf" class="card hidden">
   <h2>Add Calf</h2>
-  <select id="sex">
-    <option>Female</option>
-    <option>Male</option>
-  </select>
-  <input type="date" id="birth">
+  <select id="calfSex"><option>Female</option><option>Male</option></select>
+  <input id="calfTag" placeholder="Tag (optional)">
+  <select id="calfColor"><option></option><option>Yellow</option><option>Red</option><option>Orange</option><option>White</option></select>
+  <input type="date" id="calfBirth">
   <select id="dam"></select>
-  <select id="sire"></select>
-  <select id="status">
-    <option>Kept</option>
-    <option>Sold</option>
-  </select>
+  <select id="status"><option>Kept</option><option>Sold</option></select>
   <button class="primary" onclick="saveCalf()">Save Calf</button>
   <button class="secondary" onclick="show('calves')">Cancel</button>
 </div>
@@ -119,15 +82,10 @@ input,select{
 <!-- ADD COW -->
 <div id="addCow" class="card hidden">
   <h2>Add Existing Cow</h2>
-  <input id="tag" placeholder="Tag (optional)">
+  <input id="cowTag" placeholder="Tag">
+  <select id="cowColor"><option>Yellow</option><option>Red</option><option>Orange</option><option>White</option></select>
   <input type="date" id="cowBirth">
-  <select id="color">
-    <option>Yellow</option>
-    <option>Red</option>
-    <option>Orange</option>
-    <option>White</option>
-  </select>
-  <button class="primary" onclick="saveCow()">Save Cow</button>
+  <button class="primary" onclick="saveCow()">Save</button>
   <button class="secondary" onclick="show('cows')">Cancel</button>
 </div>
 
@@ -135,11 +93,10 @@ input,select{
 <div id="addBull" class="card hidden">
   <h2>Add Bull</h2>
   <input id="bullNum" placeholder="Bull Number">
-  <button class="primary" onclick="saveBull()">Save Bull</button>
+  <button class="primary" onclick="saveBull()">Save</button>
   <button class="secondary" onclick="show('bulls')">Cancel</button>
 </div>
 
-<!-- DETAIL -->
 <div id="detail" class="card hidden"></div>
 
 </div>
@@ -147,121 +104,67 @@ input,select{
 <script>
 let animals = JSON.parse(localStorage.animals || "[]");
 let bulls = JSON.parse(localStorage.bulls || "[]");
-let current = null;
+let current=null;
 
-function saveAll(){
-  localStorage.animals = JSON.stringify(animals);
-  localStorage.bulls = JSON.stringify(bulls);
-}
+const saveAll=()=>{localStorage.animals=JSON.stringify(animals);localStorage.bulls=JSON.stringify(bulls);};
 
-function show(id){
-  document.querySelectorAll("#screens > div").forEach(d=>d.classList.add("hidden"));
+const show=id=>{
+  document.querySelectorAll("#screens>div").forEach(d=>d.classList.add("hidden"));
   document.getElementById(id).classList.remove("hidden");
   refresh();
-}
+};
 
-function refresh(){
-  calfList.innerHTML = animals.filter(a=>a.role==="calf")
-    .map(a=>animalCard(a)).join("");
+const refresh=()=>{
+  calfList.innerHTML=animals.filter(a=>a.role==="calf").map(a=>card(a)).join("");
+  heiferList.innerHTML=animals.filter(a=>a.role==="heifer").map(a=>card(a)).join("");
+  cowList.innerHTML=animals.filter(a=>a.role==="cow").map(a=>card(a)).join("");
+  bullList.innerHTML=bulls.map(b=>`<div class="card list" onclick="openBull('${b}')">🐂 Bull ${b}</div>`).join("");
+  dam.innerHTML=`<option value="">Unknown</option>`+animals.filter(a=>a.role==="cow").map(c=>`<option value="${c.id}">${c.tag||"Untitled Cow"}</option>`).join("");
+};
 
-  heiferList.innerHTML = animals.filter(a=>a.role==="heifer")
-    .map(a=>animalCard(a)).join("");
+const card=a=>`<div class="card list" onclick="openAnimal(${a.id})">${a.role.toUpperCase()} | ${a.tag||"No Tag"}</div>`;
 
-  cowList.innerHTML = animals.filter(a=>a.role==="cow")
-    .map(a=>animalCard(a)).join("");
-
-  bullList.innerHTML = bulls
-    .map(b=>`<div class="card list" onclick="openBull('${b}')">🐂 Bull ${b}</div>`)
-    .join("");
-
-  dam.innerHTML = animals.filter(a=>a.role==="cow")
-    .map(a=>`<option>${a.tag || "Untitled Cow"}</option>`).join("");
-
-  sire.innerHTML = bulls.map(b=>`<option>${b}</option>`).join("");
-}
-
-function animalCard(a){
-  return `
-  <div class="card list" onclick="openAnimal(${a.id})">
-    ${a.role.toUpperCase()} | ${a.tag || "No Tag"} | ${a.status || ""}
-  </div>`;
-}
-
-function saveCalf(){
+const saveCalf=()=>{
   animals.push({
-    id: Date.now(),
-    role: "calf",
-    sex: sex.value,
-    birth: birth.value,
-    dam: dam.value,
-    sire: sire.value,
-    status: status.value,
-    tag: "",
-    color: "",
-    vaccines: []
+    id:Date.now(),role:"calf",
+    sex:calfSex.value,tag:calfTag.value,color:calfColor.value,
+    birth:calfBirth.value,damId:dam.value||null,status:status.value
   });
-  saveAll();
-  show("calves");
-}
+  saveAll();show("calves");
+};
 
-function saveCow(){
-  animals.push({
-    id: Date.now(),
-    role: "cow",
-    sex: "Female",
-    birth: cowBirth.value,
-    tag: tag.value,
-    color: color.value,
-    vaccines: []
-  });
-  saveAll();
-  show("cows");
-}
+const saveCow=()=>{
+  animals.push({id:Date.now(),role:"cow",sex:"Female",tag:cowTag.value,color:cowColor.value,birth:cowBirth.value});
+  saveAll();show("cows");
+};
 
-function saveBull(){
-  bulls.push(bullNum.value);
-  saveAll();
-  show("bulls");
-}
+const saveBull=()=>{bulls=[bullNum.value];saveAll();show("bulls");};
 
-function openAnimal(id){
-  current = animals.find(a=>a.id===id);
-  detail.innerHTML = `
+const openAnimal=id=>{
+  current=animals.find(a=>a.id===id);
+  const calves=animals.filter(c=>c.damId===current.id);
+  detail.innerHTML=`
     <h2>${current.role.toUpperCase()}</h2>
-    Tag:
-    <input value="${current.tag || ""}" oninput="current.tag=this.value">
-    Color:
-    <input value="${current.color || ""}" oninput="current.color=this.value">
-    Born: ${current.birth || "Unknown"}<br>
-    Status: ${current.status || ""}<br>
-
-    <button class="primary small" onclick="promote()">Promote</button>
-    <button class="danger small" onclick="removeAnimal()">Delete</button>
+    Tag:<input value="${current.tag||""}" oninput="current.tag=this.value;saveAll()">
+    Color:<input value="${current.color||""}" oninput="current.color=this.value;saveAll()">
+    Born:${current.birth||"?"}<br>
+    ${current.role==="cow"?`<h3>Calves</h3>${calves.map(c=>`<div class="badge">${c.tag||"No Tag"} | ${c.sex}</div>`).join("")}`:""}
+    ${current.role!=="cow"&&current.sex!=="Male"?`<button class="primary small" onclick="promote()">Promote</button>`:""}
+    <button class="danger small" onclick="remove()">Delete</button>
     <button class="secondary" onclick="show('${current.role}s')">Back</button>
   `;
   show("detail");
-}
+};
 
-function promote(){
-  if(current.role==="calf" && current.sex==="Female") current.role="heifer";
-  else if(current.role==="heifer") current.role="cow";
-  saveAll();
-  show(current.role + "s");
-}
+const promote=()=>{
+  if(current.role==="calf"&&current.sex==="Female")current.role="heifer";
+  else if(current.role==="heifer")current.role="cow";
+  saveAll();show(current.role+"s");
+};
 
-function removeAnimal(){
-  animals = animals.filter(a=>a.id!==current.id);
-  saveAll();
-  show("home");
-}
+const remove=()=>{animals=animals.filter(a=>a.id!==current.id);saveAll();show("home");};
 
-function openBull(b){
-  detail.innerHTML = `
-    <h2>🐂 Bull ${b}</h2>
-    <button class="secondary" onclick="show('bulls')">Back</button>
-  `;
-  show("detail");
-}
+const openBull=b=>{detail.innerHTML=`<h2>🐂 Bull ${b}</h2><button class="secondary" onclick="show('bulls')">Back</button>`;show("detail");};
 
 show("home");
 </script>
