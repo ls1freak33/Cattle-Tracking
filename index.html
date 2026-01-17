@@ -6,16 +6,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-:root {
-  --bg:#f2f2f2; --card:#fff;
-  --primary:#2e7d32; --secondary:#0277bd;
-  --warn:#ef6c00; --danger:#c62828;
+:root{
+  --bg:#f2f2f2;--card:#fff;
+  --primary:#2e7d32;--secondary:#0277bd;
+  --danger:#c62828;
 }
-body { margin:0; padding:15px; font-family:Arial; background:var(--bg); }
+body{margin:0;padding:15px;font-family:Arial;background:var(--bg)}
 h1{text-align:center}
 button{width:100%;padding:15px;margin:6px 0;font-size:17px;border-radius:10px;border:none;color:#fff}
-.primary{background:var(--primary)} .secondary{background:var(--secondary)}
-.warn{background:var(--warn)} .danger{background:var(--danger)}
+.primary{background:var(--primary)}
+.secondary{background:var(--secondary)}
+.danger{background:var(--danger)}
+.small-danger{width:60%;margin:10px auto;padding:10px;font-size:15px}
 input,select{width:100%;padding:14px;margin:6px 0;border-radius:8px;border:1px solid #ccc}
 .card{background:var(--card);padding:15px;border-radius:12px;margin-top:12px}
 .list-card{cursor:pointer}
@@ -29,9 +31,9 @@ input,select{width:100%;padding:14px;margin:6px 0;border-radius:8px;border:1px s
 
 <!-- HOME -->
 <div id="home">
-  <button class="primary" onclick="show('calves')">🐄 Calves</button>
-  <button class="secondary" onclick="show('cows')">🐄 Cows</button>
-  <button class="secondary" onclick="show('bulls')">🐂 Bulls</button>
+  <button class="primary" onclick="show('calves')">Calves</button>
+  <button class="secondary" onclick="show('cows')">Cows</button>
+  <button class="secondary" onclick="show('bulls')">Bulls</button>
 </div>
 
 <!-- CALVES -->
@@ -55,14 +57,18 @@ input,select{width:100%;padding:14px;margin:6px 0;border-radius:8px;border:1px s
   <button class="secondary" onclick="goHome()">Back</button>
 </div>
 
-<!-- ADD SCREENS -->
+<!-- ADD FORMS -->
 <div id="addCalf" class="card hidden">
   <h2>Add Calf</h2>
   <select id="calfSex"><option>Female</option><option>Male</option></select>
   <input type="date" id="birthDate">
   <select id="damSelect"></select>
   <select id="sireSelect"></select>
-  <button class="primary" onclick="saveCalf()">Save</button>
+  <select id="calfStatus">
+    <option>Kept</option>
+    <option>Sold</option>
+  </select>
+  <button class="primary" onclick="saveCalf()">Save Calf</button>
   <button class="secondary" onclick="show('calves')">Cancel</button>
 </div>
 
@@ -88,7 +94,6 @@ input,select{width:100%;padding:14px;margin:6px 0;border-radius:8px;border:1px s
 let calves=JSON.parse(localStorage.calves||"[]");
 let cows=JSON.parse(localStorage.cows||"[]");
 let bulls=JSON.parse(localStorage.bulls||"[]");
-let selected=null;
 
 function saveAll(){
   localStorage.calves=JSON.stringify(calves);
@@ -106,13 +111,11 @@ function refresh(){
     </div>`).join("");
 
   bullList.innerHTML=bulls.map(b=>`
-    <div class="card list-card" onclick="openBull('${b}')">
-      🐂 Bull ${b}
-    </div>`).join("");
+    <div class="card list-card" onclick="openBull('${b}')">🐂 Bull ${b}</div>`).join("");
 
   calfList.innerHTML=calves.map(c=>`
     <div class="card list-card" onclick="openCalf(${c.id})">
-      ${c.sex} calf | Dam ${c.dam} | Sire ${c.sire}
+      ${c.sex} calf | ${c.status} | Dam ${c.dam}
     </div>`).join("");
 
   damSelect.innerHTML=cows.map(c=>`<option>${c.tag}</option>`).join("");
@@ -122,31 +125,42 @@ function refresh(){
 function saveCow(){cows.push({tag:cowTag.value,color:cowColor.value});saveAll();show('cows')}
 function saveBull(){bulls.push(bullNum.value);saveAll();show('bulls')}
 function saveCalf(){
-  calves.push({id:Date.now(),sex:calfSex.value,birth:birthDate.value,dam:damSelect.value,sire:sireSelect.value});
+  calves.push({
+    id:Date.now(),
+    sex:calfSex.value,
+    birth:birthDate.value,
+    dam:damSelect.value,
+    sire:sireSelect.value,
+    status:calfStatus.value
+  });
   saveAll();show('calves')
 }
 
 function openCow(tag){
-  selected={type:"cow",tag};
   let herCalves=calves.filter(c=>c.dam===tag);
   detail.innerHTML=`
     <h2>🐄 Cow ${tag}</h2>
-    Calves Produced: ${herCalves.length}<br><br>
-    ${herCalves.map(c=>`<div class="card list-card" onclick="openCalf(${c.id})">Calf ${c.id}</div>`).join("")}
-    <button class="danger" onclick="deleteCow('${tag}')">Delete Cow</button>
+    <b>Calves Produced:</b> ${herCalves.length}<br><br>
+    ${herCalves.map(c=>`
+      <div class="card list-card" onclick="openCalf(${c.id})">
+        ${c.sex} calf | ${c.status}
+      </div>`).join("")}
+    <button class="danger small-danger" onclick="deleteCow('${tag}')">Delete Cow</button>
     <button class="secondary" onclick="show('cows')">Back</button>
   `;
   show('detail');
 }
 
 function openBull(num){
-  selected={type:"bull",num};
   let hisCalves=calves.filter(c=>c.sire===num);
   detail.innerHTML=`
     <h2>🐂 Bull ${num}</h2>
-    Calves Sired: ${hisCalves.length}<br><br>
-    ${hisCalves.map(c=>`<div class="card list-card" onclick="openCalf(${c.id})">Calf ${c.id}</div>`).join("")}
-    <button class="danger" onclick="deleteBull('${num}')">Delete Bull</button>
+    <b>Calves Sired:</b> ${hisCalves.length}<br><br>
+    ${hisCalves.map(c=>`
+      <div class="card list-card" onclick="openCalf(${c.id})">
+        ${c.sex} calf | ${c.status}
+      </div>`).join("")}
+    <button class="danger small-danger" onclick="deleteBull('${num}')">Delete Bull</button>
     <button class="secondary" onclick="show('bulls')">Back</button>
   `;
   show('detail');
@@ -159,8 +173,9 @@ function openCalf(id){
     Sex: ${c.sex}<br>
     Birth: ${c.birth}<br>
     Dam: ${c.dam}<br>
-    Sire: ${c.sire}<br><br>
-    <button class="danger" onclick="deleteCalf(${id})">Delete Calf</button>
+    Sire: ${c.sire}<br>
+    Status: ${c.status}<br><br>
+    <button class="danger small-danger" onclick="deleteCalf(${id})">Delete Calf</button>
     <button class="secondary" onclick="show('calves')">Back</button>
   `;
   show('detail');
