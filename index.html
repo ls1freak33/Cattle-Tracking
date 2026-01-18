@@ -59,9 +59,9 @@ input,select{width:100%;padding:12px;margin:6px 0;border-radius:8px;border:1px s
   <h2>Add Calf</h2>
   <select id="calfSex"><option>Female</option><option>Male</option></select>
   <input id="calfTag" placeholder="Tag">
-  <select id="calfColor"><option></option><option>Yellow</option><option>Red</option><option>Orange</option><option>White</option></select>
+  <input id="calfColor" placeholder="Tag Color">
   <input type="date" id="calfBirth">
-  <select id="dam"></select>
+  <select id="cow"></select>
   <select id="sire"></select>
   <button class="primary" onclick="saveCalf()">Save Calf</button>
   <button class="secondary" onclick="show('calves')">Cancel</button>
@@ -103,7 +103,7 @@ const refresh=()=>{
   cowList.innerHTML=animals.filter(a=>a.role==="cow").map(a=>card(a)).join("");
   bullList.innerHTML=bulls.map(b=>`<div class="card">${b}</div>`).join("");
 
-  dam.innerHTML=`<option value="">Unknown Dam</option>`+
+  cow.innerHTML=`<option value="">Unknown Cow</option>`+
     animals.filter(a=>a.role==="cow").map(c=>`<option value="${c.id}">${c.tag||"Cow"}</option>`).join("");
 
   sire.innerHTML=`<option value="">Unknown Sire</option>`+
@@ -120,7 +120,7 @@ const saveCalf=()=>{
     tag:calfTag.value,
     color:calfColor.value,
     birth:calfBirth.value,
-    damId:dam.value||null,
+    cowId:cow.value||null,
     sire:sire.value||null
   });
   saveAll();show("calves");
@@ -140,9 +140,9 @@ const saveBull=()=>{
 const openCalf=id=>{
   editing = JSON.parse(JSON.stringify(animals.find(a=>a.id===id)));
 
-  const damOptions=`<option value="">Unknown</option>`+
+  const cowOptions=`<option value="">Unknown</option>`+
     animals.filter(a=>a.role==="cow").map(c=>
-      `<option value="${c.id}" ${c.id==editing.damId?"selected":""}>${c.tag||"Cow"}</option>`).join("");
+      `<option value="${c.id}" ${c.id==editing.cowId?"selected":""}>${c.tag||"Cow"}</option>`).join("");
 
   const sireOptions=`<option value="">Unknown</option>`+
     bulls.map(b=>`<option ${b==editing.sire?"selected":""}>${b}</option>`).join("");
@@ -151,9 +151,9 @@ const openCalf=id=>{
     <h2>CALF</h2>
 
     Tag:<input id="eTag" value="${editing.tag||""}">
-    Color:<input id="eColor" value="${editing.color||""}">
+    Tag Color:<input id="eColor" value="${editing.color||""}">
     Born:<input type="date" id="eBirth" value="${editing.birth||""}">
-    Dam:<select id="eDam">${damOptions}</select>
+    Cow:<select id="eCow">${cowOptions}</select>
     Sire:<select id="eSire">${sireOptions}</select>
 
     <button class="primary small" onclick="saveEdits()">Save Changes</button>
@@ -168,7 +168,7 @@ const saveEdits=()=>{
     tag:eTag.value,
     color:eColor.value,
     birth:eBirth.value,
-    damId:eDam.value||null,
+    cowId:eCow.value||null,
     sire:eSire.value||null
   };
   saveAll();show("calves");
