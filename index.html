@@ -31,24 +31,28 @@ input,select{width:100%;padding:12px;margin:6px 0;border-radius:8px;border:1px s
 
 <div id="screens">
 
+<!-- HOME -->
 <div id="home">
   <button class="primary" onclick="show('calves')">Calves</button>
   <button class="secondary" onclick="show('cows')">Cows</button>
   <button class="secondary" onclick="show('bulls')">Bulls</button>
 </div>
 
+<!-- CALVES -->
 <div id="calves" class="hidden">
   <button class="primary" onclick="show('addCalf')">➕ Add Calf</button>
   <div id="calfList"></div>
   <button class="secondary" onclick="show('home')">Back</button>
 </div>
 
+<!-- COWS -->
 <div id="cows" class="hidden">
   <button class="primary" onclick="show('addCow')">➕ Add Cow</button>
   <div id="cowList"></div>
   <button class="secondary" onclick="show('home')">Back</button>
 </div>
 
+<!-- BULLS -->
 <div id="bulls" class="hidden">
   <button class="primary" onclick="show('addBull')">➕ Add Bull</button>
   <div id="bullList"></div>
@@ -105,22 +109,23 @@ const show=id=>{
 };
 
 const refresh=()=>{
-  calfList.innerHTML=animals.filter(a=>a.role==="calf").map(a=>`
-    <div class="card list" onclick="openAnimal(${a.id})">
-      CALF | ${a.tag||"No Tag"}<br>
-      💉 Vaccines: ${(a.vaccines||[]).length}
+  calfList.innerHTML=animals
+    .filter(a=>a.role==="calf")
+    .map(a=>`<div class="card list" onclick="openAnimal(${a.id})">
+      CALF | ${a.tag||"No Tag"}
     </div>`).join("");
 
-  cowList.innerHTML=animals.filter(a=>a.role==="cow").map(a=>`
-    <div class="card list" onclick="openAnimal(${a.id})">
-      🐄 Cow ${a.tag||"No Tag"}<br>
-      💉 Vaccines: ${(a.vaccines||[]).length}
+  cowList.innerHTML=animals
+    .filter(a=>a.role==="cow")
+    .map(a=>`<div class="card list" onclick="openAnimal(${a.id})">
+      🐄 Cow ${a.tag||"No Tag"}
     </div>`).join("");
 
   bullList.innerHTML=bulls.map(b=>`<div class="card">${b}</div>`).join("");
 
   cow.innerHTML=`<option value="">Unknown Cow</option>`+
-    animals.filter(a=>a.role==="cow").map(c=>`<option value="${c.id}">${c.tag||"Cow"}</option>`).join("");
+    animals.filter(a=>a.role==="cow")
+      .map(c=>`<option value="${c.id}">${c.tag||"Cow"}</option>`).join("");
 
   sire.innerHTML=`<option value="">Unknown Sire</option>`+
     bulls.map(b=>`<option>${b}</option>`).join("");
@@ -156,10 +161,6 @@ const saveBull=()=>{
 const openAnimal=id=>{
   editing=JSON.parse(JSON.stringify(animals.find(a=>a.id===id)));
 
-  const vaccineList=(editing.vaccines||[]).map(v=>
-    `<div class="badge">${v.date}${v.note?" – "+v.note:""}</div>`
-  ).join("") || "None";
-
   detail.innerHTML=`
     <h2>${editing.role.toUpperCase()}</h2>
 
@@ -168,7 +169,10 @@ const openAnimal=id=>{
     Born:<input type="date" id="eBirth" value="${editing.birth||""}">
 
     <h3>Vaccines</h3>
-    ${vaccineList}
+    ${(editing.vaccines||[]).length
+      ? editing.vaccines.map(v=>`<div class="badge">${v.date}${v.note?" – "+v.note:""}</div>`).join("")
+      : "<div class='badge'>None</div>"
+    }
 
     <input type="date" id="vDate">
     <input id="vNote" placeholder="Vaccine note">
