@@ -31,41 +31,33 @@ input,select{width:100%;padding:12px;margin:6px 0;border-radius:8px;border:1px s
 
 <div id="screens">
 
-<!-- HOME -->
 <div id="home">
   <button class="primary" onclick="show('calves')">Calves</button>
   <button class="secondary" onclick="show('cows')">Cows</button>
   <button class="secondary" onclick="show('bulls')">Bulls</button>
 </div>
 
-<!-- CALVES -->
 <div id="calves" class="hidden">
   <button class="primary" onclick="show('addCalf')">➕ Add Calf</button>
   <div id="calfList"></div>
   <button class="secondary" onclick="show('home')">Back</button>
 </div>
 
-<!-- COWS -->
 <div id="cows" class="hidden">
   <button class="primary" onclick="show('addCow')">➕ Add Cow</button>
   <div id="cowList"></div>
   <button class="secondary" onclick="show('home')">Back</button>
 </div>
 
-<!-- BULLS -->
 <div id="bulls" class="hidden">
   <button class="primary" onclick="show('addBull')">➕ Add Bull</button>
   <div id="bullList"></div>
   <button class="secondary" onclick="show('home')">Back</button>
 </div>
 
-<!-- ADD CALF -->
 <div id="addCalf" class="card hidden">
   <h2>Add Calf</h2>
-  <select id="calfSex">
-    <option>Female</option>
-    <option>Male</option>
-  </select>
+  <select id="calfSex"><option>Female</option><option>Male</option></select>
   <input id="calfTag" placeholder="Tag">
   <input id="calfColor" placeholder="Tag Color">
   <input type="date" id="calfBirth">
@@ -75,7 +67,6 @@ input,select{width:100%;padding:12px;margin:6px 0;border-radius:8px;border:1px s
   <button class="secondary" onclick="show('calves')">Cancel</button>
 </div>
 
-<!-- ADD COW -->
 <div id="addCow" class="card hidden">
   <h2>Add Cow</h2>
   <input id="cowTag" placeholder="Tag">
@@ -83,7 +74,6 @@ input,select{width:100%;padding:12px;margin:6px 0;border-radius:8px;border:1px s
   <button class="secondary" onclick="show('cows')">Cancel</button>
 </div>
 
-<!-- ADD BULL -->
 <div id="addBull" class="card hidden">
   <h2>Add Bull</h2>
   <input id="bullNum" placeholder="Bull Number">
@@ -109,14 +99,12 @@ const show=id=>{
 };
 
 const refresh=()=>{
-  calfList.innerHTML=animals
-    .filter(a=>a.role==="calf")
+  calfList.innerHTML=animals.filter(a=>a.role==="calf")
     .map(a=>`<div class="card list" onclick="openAnimal(${a.id})">
       CALF | ${a.tag||"No Tag"}
     </div>`).join("");
 
-  cowList.innerHTML=animals
-    .filter(a=>a.role==="cow")
+  cowList.innerHTML=animals.filter(a=>a.role==="cow")
     .map(a=>`<div class="card list" onclick="openAnimal(${a.id})">
       🐄 Cow ${a.tag||"No Tag"}
     </div>`).join("");
@@ -159,7 +147,7 @@ const saveBull=()=>{
 };
 
 const openAnimal=id=>{
-  editing=JSON.parse(JSON.stringify(animals.find(a=>a.id===id)));
+  editing=animals.find(a=>a.id===id);
 
   detail.innerHTML=`
     <h2>${editing.role.toUpperCase()}</h2>
@@ -169,7 +157,7 @@ const openAnimal=id=>{
     Born:<input type="date" id="eBirth" value="${editing.birth||""}">
 
     <h3>Vaccines</h3>
-    ${(editing.vaccines||[]).length
+    ${editing.vaccines.length
       ? editing.vaccines.map(v=>`<div class="badge">${v.date}${v.note?" – "+v.note:""}</div>`).join("")
       : "<div class='badge'>None</div>"
     }
@@ -192,22 +180,19 @@ const openAnimal=id=>{
 };
 
 const addVaccine=()=>{
-  if(!editing.vaccines)editing.vaccines=[];
-  if(vDate.value)
-    editing.vaccines.push({date:vDate.value,note:vNote.value});
+  if(!vDate.value) return alert("Please select a vaccine date");
+  editing.vaccines.push({date:vDate.value,note:vNote.value});
+  saveAll();
   openAnimal(editing.id);
 };
 
 const saveEdits=()=>{
-  let i=animals.findIndex(a=>a.id===editing.id);
-  animals[i]={...animals[i],
-    tag:eTag.value,
-    color:eColor.value,
-    birth:eBirth.value,
-    vaccines:editing.vaccines,
-    cut: editing.sex==="Male"?eCut?.value:null
-  };
-  saveAll();show(editing.role+"s");
+  editing.tag=eTag.value;
+  editing.color=eColor.value;
+  editing.birth=eBirth.value;
+  if(editing.sex==="Male") editing.cut=eCut.value;
+  saveAll();
+  show(editing.role+"s");
 };
 
 show("home");
