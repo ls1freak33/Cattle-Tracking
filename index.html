@@ -21,7 +21,8 @@ input,select{width:100%;padding:12px;margin:6px 0;border-radius:8px;border:1px s
 .card{background:var(--card);padding:15px;border-radius:12px;margin-top:12px}
 .list{cursor:pointer}
 .hidden{display:none}
-.badge{background:#e8f5e9;padding:6px;border-radius:6px;margin:4px 0}
+.badge{background:#e8f5e9;padding:8px;border-radius:6px;margin:4px 0}
+.badge.active{background:#c8e6c9}
 </style>
 </head>
 
@@ -43,42 +44,17 @@ input,select{width:100%;padding:12px;margin:6px 0;border-radius:8px;border:1px s
   <button class="secondary" onclick="show('home')">Back</button>
 </div>
 
-<div id="cows" class="hidden">
-  <button class="primary" onclick="show('addCow')">➕ Add Cow</button>
-  <div id="cowList"></div>
-  <button class="secondary" onclick="show('home')">Back</button>
-</div>
-
-<div id="bulls" class="hidden">
-  <button class="primary" onclick="show('addBull')">➕ Add Bull</button>
-  <div id="bullList"></div>
-  <button class="secondary" onclick="show('home')">Back</button>
-</div>
-
 <div id="addCalf" class="card hidden">
   <h2>Add Calf</h2>
-  <select id="calfSex"><option>Female</option><option>Male</option></select>
+  <select id="calfSex">
+    <option>Female</option>
+    <option>Male</option>
+  </select>
   <input id="calfTag" placeholder="Tag">
   <input id="calfColor" placeholder="Tag Color">
   <input type="date" id="calfBirth">
-  <select id="cow"></select>
-  <select id="sire"></select>
   <button class="primary" onclick="saveCalf()">Save Calf</button>
   <button class="secondary" onclick="show('calves')">Cancel</button>
-</div>
-
-<div id="addCow" class="card hidden">
-  <h2>Add Cow</h2>
-  <input id="cowTag" placeholder="Tag">
-  <button class="primary" onclick="saveCow()">Save</button>
-  <button class="secondary" onclick="show('cows')">Cancel</button>
-</div>
-
-<div id="addBull" class="card hidden">
-  <h2>Add Bull</h2>
-  <input id="bullNum" placeholder="Bull Number">
-  <button class="primary" onclick="saveBull()">Save</button>
-  <button class="secondary" onclick="show('bulls')">Cancel</button>
 </div>
 
 <div id="detail" class="card hidden"></div>
@@ -87,8 +63,8 @@ input,select{width:100%;padding:12px;margin:6px 0;border-radius:8px;border:1px s
 
 <script>
 let animals = JSON.parse(localStorage.animals || "[]");
-let bulls = JSON.parse(localStorage.bulls || "[]");
-let editing=null;
+let editing = null;
+let selectedVaccine = null;
 
 const saveAll=()=>localStorage.animals=JSON.stringify(animals);
 
@@ -99,24 +75,11 @@ const show=id=>{
 };
 
 const refresh=()=>{
-  calfList.innerHTML=animals.filter(a=>a.role==="calf")
+  calfList.innerHTML=animals
+    .filter(a=>a.role==="calf")
     .map(a=>`<div class="card list" onclick="openAnimal(${a.id})">
       CALF | ${a.tag||"No Tag"}
     </div>`).join("");
-
-  cowList.innerHTML=animals.filter(a=>a.role==="cow")
-    .map(a=>`<div class="card list" onclick="openAnimal(${a.id})">
-      🐄 Cow ${a.tag||"No Tag"}
-    </div>`).join("");
-
-  bullList.innerHTML=bulls.map(b=>`<div class="card">${b}</div>`).join("");
-
-  cow.innerHTML=`<option value="">Unknown Cow</option>`+
-    animals.filter(a=>a.role==="cow")
-      .map(c=>`<option value="${c.id}">${c.tag||"Cow"}</option>`).join("");
-
-  sire.innerHTML=`<option value="">Unknown Sire</option>`+
-    bulls.map(b=>`<option>${b}</option>`).join("");
 };
 
 const saveCalf=()=>{
@@ -127,44 +90,38 @@ const saveCalf=()=>{
     tag:calfTag.value,
     color:calfColor.value,
     birth:calfBirth.value,
-    cowId:cow.value||null,
-    sire:sire.value||null,
     cut: calfSex.value==="Male"?"No":null,
     vaccines:[]
   });
   saveAll();show("calves");
 };
 
-const saveCow=()=>{
-  animals.push({id:Date.now(),role:"cow",tag:cowTag.value,vaccines:[]});
-  saveAll();show("cows");
-};
-
-const saveBull=()=>{
-  bulls=[bullNum.value];
-  localStorage.bulls=JSON.stringify(bulls);
-  show("bulls");
-};
-
 const openAnimal=id=>{
-  editing=animals.find(a=>a.id===id);
+  editing=JSON.parse(JSON.stringify(animals.find(a=>a.id===id)));
+  selectedVaccine=null;
 
   detail.innerHTML=`
-    <h2>${editing.role.toUpperCase()}</h2>
+    <h2>CALF</h2>
 
     Tag:<input id="eTag" value="${editing.tag||""}">
     Color:<input id="eColor" value="${editing.color||""}">
     Born:<input type="date" id="eBirth" value="${editing.birth||""}">
 
     <h3>Vaccines</h3>
-    ${editing.vaccines.length
-      ? editing.vaccines.map(v=>`<div class="badge">${v.date}${v.note?" – "+v.note:""}</div>`).join("")
+    ${(editing.vaccines.length)
+      ? editing.vaccines.map((v,i)=>`
+        <div class="badge ${selectedVaccine===i?"active":""}"
+             onclick="selectVaccine(${i})">
+          ${v.date} – ${v.note||""}
+        </div>`).join("")
       : "<div class='badge'>None</div>"
     }
 
     <input type="date" id="vDate">
     <input id="vNote" placeholder="Vaccine note">
-    <button class="secondary" onclick="addVaccine()">Add Vaccine</button>
+
+    <button class="secondary" onclick="addOrUpdateVaccine()">Add / Update Vaccine</button>
+    <button class="danger" onclick="deleteVaccine()">Delete Vaccine</button>
 
     ${editing.sex==="Male"?`
       Cut:
@@ -174,25 +131,46 @@ const openAnimal=id=>{
       </select>`:""}
 
     <button class="primary small" onclick="saveEdits()">Save Changes</button>
-    <button class="secondary" onclick="show('${editing.role}s')">Back</button>
+    <button class="secondary" onclick="show('calves')">Back</button>
   `;
   show("detail");
 };
 
-const addVaccine=()=>{
-  if(!vDate.value) return alert("Please select a vaccine date");
-  editing.vaccines.push({date:vDate.value,note:vNote.value});
-  saveAll();
+const selectVaccine=i=>{
+  selectedVaccine=i;
+  vDate.value=editing.vaccines[i].date;
+  vNote.value=editing.vaccines[i].note||"";
+  openAnimal(editing.id);
+};
+
+const addOrUpdateVaccine=()=>{
+  if(!vDate.value)return;
+  if(selectedVaccine===null){
+    editing.vaccines.push({date:vDate.value,note:vNote.value});
+  }else{
+    editing.vaccines[selectedVaccine]={date:vDate.value,note:vNote.value};
+  }
+  selectedVaccine=null;
+  openAnimal(editing.id);
+};
+
+const deleteVaccine=()=>{
+  if(selectedVaccine===null)return;
+  editing.vaccines.splice(selectedVaccine,1);
+  selectedVaccine=null;
   openAnimal(editing.id);
 };
 
 const saveEdits=()=>{
-  editing.tag=eTag.value;
-  editing.color=eColor.value;
-  editing.birth=eBirth.value;
-  if(editing.sex==="Male") editing.cut=eCut.value;
-  saveAll();
-  show(editing.role+"s");
+  let i=animals.findIndex(a=>a.id===editing.id);
+  animals[i]={...animals[i],
+    tag:eTag.value,
+    color:eColor.value,
+    birth:eBirth.value,
+    vaccines:editing.vaccines,
+    cut: editing.sex==="Male"?eCut?.value:null
+  };
+  saveAll();show("calves");
 };
 
 show("home");
