@@ -7,22 +7,53 @@
 
 <style>
 :root{
-  --bg:#f2f2f2;--card:#fff;
-  --primary:#2e7d32;--secondary:#0277bd;--danger:#c62828;
+  --bg:#f2f2f2;
+  --card:#ffffff;
+  --primary:#2e7d32;
+  --secondary:#0277bd;
+  --danger:#c62828;
+  --gray:#777;
 }
 body{margin:0;padding:15px;font-family:Arial;background:var(--bg)}
-h1{text-align:center}
-button{width:100%;padding:14px;margin:6px 0;font-size:16px;border-radius:10px;border:none;color:#fff}
+h1{text-align:center;margin-bottom:10px}
+h2,h3{margin-top:0}
+button{
+  width:100%;
+  padding:14px;
+  margin:6px 0;
+  font-size:16px;
+  border-radius:10px;
+  border:none;
+  color:#fff;
+}
 .primary{background:var(--primary)}
 .secondary{background:var(--secondary)}
 .danger{background:var(--danger)}
-.small{width:70%;margin:8px auto}
-input,select{width:100%;padding:12px;margin:6px 0;border-radius:8px;border:1px solid #ccc}
-.card{background:var(--card);padding:15px;border-radius:12px;margin-top:12px}
+.small{width:80%;margin:10px auto}
+input,select,textarea{
+  width:100%;
+  padding:12px;
+  margin:6px 0;
+  border-radius:8px;
+  border:1px solid #ccc;
+}
+textarea{resize:vertical}
+.card{
+  background:var(--card);
+  padding:15px;
+  border-radius:12px;
+  margin-top:12px;
+}
 .list{cursor:pointer}
 .hidden{display:none}
-.badge{background:#e8f5e9;padding:8px;border-radius:6px;margin:4px 0}
+.badge{
+  background:#e8f5e9;
+  padding:8px;
+  border-radius:6px;
+  margin:4px 0;
+}
 .badge.active{background:#c8e6c9}
+.muted{color:var(--gray);font-size:14px}
 </style>
 </head>
 
@@ -32,41 +63,91 @@ input,select{width:100%;padding:12px;margin:6px 0;border-radius:8px;border:1px s
 
 <div id="screens">
 
+<!-- HOME -->
 <div id="home">
   <button class="primary" onclick="show('calves')">Calves</button>
+  <button class="secondary" onclick="show('heifers')">Heifers</button>
   <button class="secondary" onclick="show('cows')">Cows</button>
-  <button class="secondary" onclick="show('bulls')">Bulls</button>
+  <button class="secondary" onclick="show('bulls')">Bull</button>
+  <button class="secondary" onclick="show('history')">Sold / History</button>
 </div>
 
+<!-- LIST SCREENS -->
 <div id="calves" class="hidden">
   <button class="primary" onclick="show('addCalf')">➕ Add Calf</button>
   <div id="calfList"></div>
   <button class="secondary" onclick="show('home')">Back</button>
 </div>
 
+<div id="heifers" class="hidden">
+  <div id="heiferList"></div>
+  <button class="secondary" onclick="show('home')">Back</button>
+</div>
+
+<div id="cows" class="hidden">
+  <button class="primary" onclick="show('addCow')">➕ Add Cow</button>
+  <div id="cowList"></div>
+  <button class="secondary" onclick="show('home')">Back</button>
+</div>
+
+<div id="bulls" class="hidden">
+  <button class="primary" onclick="show('addBull')">➕ Set Active Bull</button>
+  <div id="bullList"></div>
+  <button class="secondary" onclick="show('home')">Back</button>
+</div>
+
+<div id="history" class="hidden">
+  <div id="historyList"></div>
+  <button class="secondary" onclick="show('home')">Back</button>
+</div>
+
+<!-- ADD CALF -->
 <div id="addCalf" class="card hidden">
   <h2>Add Calf</h2>
   <select id="calfSex">
     <option>Female</option>
     <option>Male</option>
   </select>
-  <input id="calfTag" placeholder="Tag">
-  <input id="calfColor" placeholder="Tag Color">
+  <input id="calfTag" placeholder="Tag (optional)">
+  <input id="calfColor" placeholder="Tag Color (optional)">
   <input type="date" id="calfBirth">
+  <select id="calfDam"></select>
+  <select id="calfSire"></select>
   <button class="primary" onclick="saveCalf()">Save Calf</button>
   <button class="secondary" onclick="show('calves')">Cancel</button>
 </div>
 
+<!-- ADD COW -->
+<div id="addCow" class="card hidden">
+  <h2>Add Cow</h2>
+  <input id="cowTag" placeholder="Cow Tag">
+  <button class="primary" onclick="saveCow()">Save Cow</button>
+  <button class="secondary" onclick="show('cows')">Cancel</button>
+</div>
+
+<!-- ADD BULL -->
+<div id="addBull" class="card hidden">
+  <h2>Set Active Bull</h2>
+  <input id="bullName" placeholder="Bull Name / Number">
+  <button class="primary" onclick="saveBull()">Save Bull</button>
+  <button class="secondary" onclick="show('bulls')">Cancel</button>
+</div>
+
+<!-- DETAIL -->
 <div id="detail" class="card hidden"></div>
 
 </div>
 
 <script>
-let animals = JSON.parse(localStorage.animals || "[]");
-let editing = null;
-let selectedVaccine = null;
+let animals = JSON.parse(localStorage.animals||"[]");
+let bulls = JSON.parse(localStorage.bulls||"[]");
+let editing=null;
+let selectedVaccine=null;
 
-const saveAll=()=>localStorage.animals=JSON.stringify(animals);
+const saveAll=()=>{
+  localStorage.animals=JSON.stringify(animals);
+  localStorage.bulls=JSON.stringify(bulls);
+};
 
 const show=id=>{
   document.querySelectorAll("#screens>div").forEach(d=>d.classList.add("hidden"));
@@ -75,12 +156,33 @@ const show=id=>{
 };
 
 const refresh=()=>{
-  calfList.innerHTML=animals
-    .filter(a=>a.role==="calf")
-    .map(a=>`<div class="card list" onclick="openAnimal(${a.id})">
-      CALF | ${a.tag||"No Tag"}
-    </div>`).join("");
+  calfList.innerHTML=animals.filter(a=>a.role==="calf"&&!a.sold)
+    .map(a=>card(a)).join("");
+
+  heiferList.innerHTML=animals.filter(a=>a.role==="heifer"&&!a.sold)
+    .map(a=>card(a)).join("");
+
+  cowList.innerHTML=animals.filter(a=>a.role==="cow"&&!a.sold)
+    .map(a=>card(a)).join("");
+
+  historyList.innerHTML=animals.filter(a=>a.sold)
+    .map(a=>card(a,true)).join("");
+
+  bullList.innerHTML=bulls.filter(b=>!b.sold)
+    .map(b=>`<div class="card list" onclick="openBull(${b.id})">🐂 ${b.name}</div>`).join("");
+
+  calfDam.innerHTML=`<option value="">Unknown Cow</option>`+
+    animals.filter(a=>a.role==="cow"&&!a.sold)
+      .map(c=>`<option value="${c.id}">${c.tag||"Cow"}</option>`).join("");
+
+  calfSire.innerHTML=`<option value="">Unknown Sire</option>`+
+    bulls.filter(b=>!b.sold).map(b=>`<option>${b.name}</option>`).join("");
 };
+
+const card=a=>`
+<div class="card list" onclick="openAnimal(${a.id})">
+<b>${a.role.toUpperCase()}</b> | ${a.tag||"No Tag"}
+</div>`;
 
 const saveCalf=()=>{
   animals.push({
@@ -90,8 +192,11 @@ const saveCalf=()=>{
     tag:calfTag.value,
     color:calfColor.value,
     birth:calfBirth.value,
+    dam:calfDam.value||null,
+    sire:calfSire.value||null,
     cut: calfSex.value==="Male"?"No":null,
-    vaccines:[]
+    vaccines:[],
+    sold:false
   });
   saveAll();show("calves");
 };
@@ -101,37 +206,38 @@ const openAnimal=id=>{
   selectedVaccine=null;
 
   detail.innerHTML=`
-    <h2>CALF</h2>
+  <h2>${editing.role.toUpperCase()}</h2>
 
-    Tag:<input id="eTag" value="${editing.tag||""}">
-    Color:<input id="eColor" value="${editing.color||""}">
-    Born:<input type="date" id="eBirth" value="${editing.birth||""}">
+  Tag:<input id="eTag" value="${editing.tag||""}">
+  Color:<input id="eColor" value="${editing.color||""}">
+  Born:<input type="date" id="eBirth" value="${editing.birth||""}">
 
-    <h3>Vaccines</h3>
-    ${(editing.vaccines.length)
-      ? editing.vaccines.map((v,i)=>`
-        <div class="badge ${selectedVaccine===i?"active":""}"
-             onclick="selectVaccine(${i})">
-          ${v.date} – ${v.note||""}
-        </div>`).join("")
-      : "<div class='badge'>None</div>"
-    }
+  <h3>Vaccines</h3>
+  ${editing.vaccines.length
+    ? editing.vaccines.map((v,i)=>`
+      <div class="badge ${selectedVaccine===i?"active":""}"
+           onclick="selectVaccine(${i})">
+        ${v.date} – ${v.note||""}
+      </div>`).join("")
+    : "<div class='badge'>None</div>"
+  }
 
-    <input type="date" id="vDate">
-    <input id="vNote" placeholder="Vaccine note">
+  <input type="date" id="vDate">
+  <input id="vNote" placeholder="Vaccine note">
+  <button class="secondary" onclick="addOrUpdateVaccine()">Add / Update Vaccine</button>
+  <button class="danger" onclick="deleteVaccine()">Delete Vaccine</button>
 
-    <button class="secondary" onclick="addOrUpdateVaccine()">Add / Update Vaccine</button>
-    <button class="danger" onclick="deleteVaccine()">Delete Vaccine</button>
+  ${editing.sex==="Male"?`
+  Cut:
+  <select id="eCut">
+    <option ${editing.cut==="No"?"selected":""}>No</option>
+    <option ${editing.cut==="Yes"?"selected":""}>Yes</option>
+  </select>`:""}
 
-    ${editing.sex==="Male"?`
-      Cut:
-      <select id="eCut">
-        <option ${editing.cut==="No"?"selected":""}>No</option>
-        <option ${editing.cut==="Yes"?"selected":""}>Yes</option>
-      </select>`:""}
-
-    <button class="primary small" onclick="saveEdits()">Save Changes</button>
-    <button class="secondary" onclick="show('calves')">Back</button>
+  <button class="primary small" onclick="saveEdits()">Save Changes</button>
+  <button class="secondary small" onclick="promote()">Promote</button>
+  <button class="danger small" onclick="markSold()">Mark Sold</button>
+  <button class="secondary" onclick="show('${editing.role}s')">Back</button>
   `;
   show("detail");
 };
@@ -140,16 +246,14 @@ const selectVaccine=i=>{
   selectedVaccine=i;
   vDate.value=editing.vaccines[i].date;
   vNote.value=editing.vaccines[i].note||"";
-  openAnimal(editing.id);
 };
 
 const addOrUpdateVaccine=()=>{
   if(!vDate.value)return;
-  if(selectedVaccine===null){
+  if(selectedVaccine===null)
     editing.vaccines.push({date:vDate.value,note:vNote.value});
-  }else{
+  else
     editing.vaccines[selectedVaccine]={date:vDate.value,note:vNote.value};
-  }
   selectedVaccine=null;
   openAnimal(editing.id);
 };
@@ -170,7 +274,31 @@ const saveEdits=()=>{
     vaccines:editing.vaccines,
     cut: editing.sex==="Male"?eCut?.value:null
   };
-  saveAll();show("calves");
+  saveAll();show(editing.role+"s");
+};
+
+const promote=()=>{
+  if(editing.role==="calf")editing.role="heifer";
+  else if(editing.role==="heifer")editing.role="cow";
+  saveEdits();
+};
+
+const markSold=()=>{
+  if(!confirm("Mark as sold?"))return;
+  let i=animals.findIndex(a=>a.id===editing.id);
+  animals[i].sold=true;
+  saveAll();show("history");
+};
+
+const saveCow=()=>{
+  animals.push({id:Date.now(),role:"cow",tag:cowTag.value,vaccines:[],sold:false});
+  saveAll();show("cows");
+};
+
+const saveBull=()=>{
+  bulls.forEach(b=>b.sold=true);
+  bulls.push({id:Date.now(),name:bullName.value,vaccines:[],sold:false});
+  saveAll();show("bulls");
 };
 
 show("home");
