@@ -32,61 +32,47 @@ input,select{width:100%;padding:12px;margin:6px 0;border-radius:8px;border:1px s
 
 <div id="screens">
 
-<!-- HOME -->
 <div id="home">
   <button class="primary" onclick="show('calves')">Calves</button>
   <button class="secondary" onclick="show('heifers')">Heifers</button>
-  <button class="secondary" onclick="show('cows')">Cows</button>
-  <button class="secondary" onclick="show('bulls')">Bulls</button>
   <button class="secondary" onclick="show('sold')">Sold / History</button>
 </div>
 
-<!-- CALVES -->
 <div id="calves" class="hidden">
   <button class="primary" onclick="show('addCalf')">➕ Add Calf</button>
   <div id="calfList"></div>
   <button class="secondary" onclick="show('home')">Back</button>
 </div>
 
-<!-- ADD CALF -->
+<div id="heifers" class="hidden">
+  <h2>Heifers</h2>
+  <div id="heiferList"></div>
+  <button class="secondary" onclick="show('home')">Back</button>
+</div>
+
 <div id="addCalf" class="card hidden">
   <h2>Add Calf</h2>
 
   <select id="calfSex">
-    <option value="Female">Female</option>
-    <option value="Male">Male</option>
+    <option>Female</option>
+    <option>Male</option>
   </select>
 
   <input id="calfTag" placeholder="Tag (optional)">
   <input id="calfColor" placeholder="Tag Color">
   <input type="date" id="calfBirth">
 
-  <select id="calfDam">
-    <option value="">Select Cow (Dam)</option>
-  </select>
-
-  <select id="calfSire">
-    <option value="">Select Bull (Sire)</option>
-  </select>
-
   <button class="primary" onclick="saveCalf()">Save Calf</button>
   <button class="secondary" onclick="show('calves')">Cancel</button>
 </div>
 
-<!-- DETAIL -->
 <div id="detail" class="card hidden"></div>
 
-<!-- SOLD -->
 <div id="sold" class="hidden">
   <h2>Sold / History</h2>
   <div id="soldList"></div>
   <button class="secondary" onclick="show('home')">Back</button>
 </div>
-
-<!-- PLACEHOLDERS -->
-<div id="heifers" class="hidden"><button onclick="show('home')">Back</button></div>
-<div id="cows" class="hidden"><button onclick="show('home')">Back</button></div>
-<div id="bulls" class="hidden"><button onclick="show('home')">Back</button></div>
 
 </div>
 
@@ -107,7 +93,13 @@ const refresh = () => {
   calfList.innerHTML = animals
     .filter(a=>a.role==="calf" && !a.sold)
     .map(a=>`<div class="card list" onclick="openAnimal(${a.id})">
-      CALF | Tag ${a.tag||"—"} | ${a.sex}
+      CALF | Tag ${a.tag||"—"}
+    </div>`).join("");
+
+  heiferList.innerHTML = animals
+    .filter(a=>a.role==="heifer" && !a.sold)
+    .map(a=>`<div class="card">
+      HEIFER | Tag ${a.tag||"—"}
     </div>`).join("");
 
   soldList.innerHTML = animals
@@ -115,12 +107,6 @@ const refresh = () => {
     .map(a=>`<div class="card">
       ${a.role.toUpperCase()} | Tag ${a.tag||"—"}
     </div>`).join("");
-
-  calfDam.innerHTML = `<option value="">Select Cow (Dam)</option>` +
-    animals.filter(a=>a.role==="cow").map(c=>`<option value="${c.id}">${c.tag||"Cow"}</option>`).join("");
-
-  calfSire.innerHTML = `<option value="">Select Bull (Sire)</option>` +
-    animals.filter(a=>a.role==="bull" && !a.sold).map(b=>`<option value="${b.id}">${b.tag||"Bull"}</option>`).join("");
 };
 
 const saveCalf = () => {
@@ -131,8 +117,6 @@ const saveCalf = () => {
     tag:calfTag.value,
     color:calfColor.value,
     birth:calfBirth.value,
-    dam:calfDam.value||null,
-    sire:calfSire.value||null,
     cut: calfSex.value==="Male"?"No":null,
     vaccines:[],
     sold:false
@@ -141,7 +125,7 @@ const saveCalf = () => {
 };
 
 const openAnimal = id => {
-  editing = JSON.parse(JSON.stringify(animals.find(a=>a.id===id)));
+  editing = animals.find(a=>a.id===id);
   selectedVaccine = null;
 
   detail.innerHTML = `
@@ -164,15 +148,8 @@ const openAnimal = id => {
     <input type="date" id="vDate">
     <input id="vNote" placeholder="Vaccine note">
 
-    <button class="secondary" onclick="addOrUpdateVaccine()">Add / Update Vaccine</button>
+    <button class="secondary" onclick="addVaccine()">Add Vaccine</button>
     <button class="danger" onclick="deleteVaccine()">Delete Vaccine</button>
-
-    ${editing.sex==="Male"?`
-      Cut:
-      <select id="eCut">
-        <option ${editing.cut==="No"?"selected":""}>No</option>
-        <option ${editing.cut==="Yes"?"selected":""}>Yes</option>
-      </select>`:""}
 
     <button class="primary small" onclick="saveEdits()">Save Changes</button>
     <button class="secondary" onclick="show('calves')">Back</button>
@@ -184,55 +161,45 @@ const openAnimal = id => {
 
 const selectVaccine = i => {
   selectedVaccine = i;
-  vDate.value = editing.vaccines[i].date;
-  vNote.value = editing.vaccines[i].note || "";
 };
 
-const addOrUpdateVaccine = () => {
+const addVaccine = () => {
   if(!vDate.value) return;
-  if(selectedVaccine===null)
-    editing.vaccines.push({date:vDate.value,note:vNote.value});
-  else
-    editing.vaccines[selectedVaccine]={date:vDate.value,note:vNote.value};
-  selectedVaccine=null;
+  editing.vaccines.push({date:vDate.value,note:vNote.value});
+  saveAll();
   openAnimal(editing.id);
 };
 
 const deleteVaccine = () => {
   if(selectedVaccine===null) return;
   editing.vaccines.splice(selectedVaccine,1);
-  selectedVaccine=null;
+  saveAll();
   openAnimal(editing.id);
 };
 
 const saveEdits = () => {
-  let i = animals.findIndex(a=>a.id===editing.id);
-  animals[i] = {
-    ...animals[i],
-    tag:eTag.value,
-    color:eColor.value,
-    birth:eBirth.value,
-    vaccines:editing.vaccines,
-    cut: editing.sex==="Male"?eCut.value:null
-  };
-  saveAll(); show("calves");
+  editing.tag = eTag.value;
+  editing.color = eColor.value;
+  editing.birth = eBirth.value;
+  saveAll();
+  show("calves");
 };
 
 const promote = () => {
   if(editing.sex==="Male") return alert("Male calves cannot be promoted.");
-  let i = animals.findIndex(a=>a.id===editing.id);
-  animals[i].role = "heifer";
-  saveAll(); show("calves");
+  editing.role = "heifer";
+  saveAll();
+  show("heifers");
 };
 
 const markSold = () => {
-  let i = animals.findIndex(a=>a.id===editing.id);
-  animals[i].sold = true;
-  saveAll(); show("calves");
+  editing.sold = true;
+  saveAll();
+  show("calves");
 };
 
 show("home");
 </script>
 
 </body>
-</html> 
+</html>
