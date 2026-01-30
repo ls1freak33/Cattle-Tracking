@@ -22,6 +22,7 @@
   body{margin:0;padding:14px;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
   h1{margin:8px 0 10px;text-align:center;font-size:34px}
   h2{margin:6px 0 10px}
+  h3{margin:10px 0 8px}
   .sub{margin-top:-2px;text-align:center;color:var(--muted);font-size:13px}
   button{width:100%;padding:14px;margin:6px 0;font-size:16px;border-radius:10px;border:none;color:#fff}
   .primary{background:var(--primary)}
@@ -72,7 +73,7 @@
   .hr{height:1px;background:var(--line);margin:12px 0}
   .label{font-size:12px;color:var(--muted);margin-top:8px}
   .kvs{line-height:1.55}
-  .kvs b{display:inline-block;min-width:74px}
+  .kvs b{display:inline-block;min-width:86px}
   .topSearch{
     margin:10px 0 0;
     display:flex;
@@ -82,6 +83,7 @@
   .topSearch input{margin:0}
   .topSearch button{margin:0;width:auto;white-space:nowrap;padding:12px 14px;border-radius:10px}
   .note{font-size:13px;color:var(--muted)}
+  .lockNote{font-size:12px;color:var(--muted);margin-top:6px}
 </style>
 </head>
 
@@ -126,6 +128,8 @@
 
     <!-- HEIFERS LIST -->
     <div id="heifers" class="hidden">
+      <button class="primary" onclick="openAdd('heifer')">➕ Add Heifer</button>
+
       <div class="topSearch">
         <input id="heiferSearch" placeholder="Search heifers by Tag #" oninput="refresh()" />
         <button class="ghost" onclick="document.getElementById('heiferSearch').value='';refresh()">Clear</button>
@@ -223,9 +227,16 @@ function fmtSire(sireId){
   return s ? ("Bull " + safeTag(s)) : "Unknown";
 }
 
-function isLocked(a){
-  // After promote: dam/sire/sex lock for heifer/cow
-  return a.role === 'heifer' || a.role === 'cow';
+/*
+  Lock rules (per your request):
+  - After calf -> heifer promotion: Sex/Dam/Sire/Description become locked.
+  - After heifer -> cow promotion: same stays locked.
+  - For cows/bulls created directly: NOT locked (editable).
+*/
+function isPromotedLocked(a){
+  // Locked only if the animal is a heifer/cow AND it came from promotion from a calf.
+  // We'll track this with a boolean flag: a.lockAfterPromote === true
+  return (a.lockAfterPromote === true) && (a.role === 'heifer' || a.role === 'cow');
 }
 
 function hasUnsavedChanges(){
@@ -250,7 +261,6 @@ function show(id){
 }
 
 function goBack(fallback){
-  // If in detail/add with unsaved changes, warn.
   const current = getCurrentScreenId();
   if(current === 'detail' || current === 'add'){
     return confirmIfUnsaved(() => popScreen(fallback));
@@ -285,6 +295,11 @@ function matchesTag(a, query){
   return normalize(a.tag).includes(normalize(query));
 }
 
+function shortDesc(a){
+  const d = (a.description || "").trim();
+  return d ? d : "";
+}
+
 function refresh(){
   // CALVES
   const calfQ = document.getElementById('calfSearch')?.value || '';
@@ -314,22 +329,27 @@ function refresh(){
 
 function renderListItem(a){
   const metaBits = [];
+  const desc = shortDesc(a);
+
   if(a.role === 'calf'){
     metaBits.push(a.sex || '');
     metaBits.push(fmtDam(a.damId));
     metaBits.push(fmtSire(a.sireId));
+    if(desc) metaBits.push(desc);
   }
   if(a.role === 'heifer'){
     metaBits.push("Born " + (a.birth || "—"));
-    metaBits.push(fmtDam(a.damId));
+    if(desc) metaBits.push(desc);
   }
   if(a.role === 'cow'){
     const herCalves = animals.filter(x => !x.sold && x.damId && Number(x.damId)===a.id);
     metaBits.push("Calves: " + herCalves.length);
+    if(desc) metaBits.push(desc);
   }
   if(a.role === 'bull'){
     const his = animals.filter(x => !x.sold && x.sireId && Number(x.sireId)===a.id);
     metaBits.push("Sired: " + his.length);
+    if(desc) metaBits.push(desc);
   }
   if(a.sold) metaBits.push("SOLD");
 
@@ -411,6 +431,9 @@ function renderAddForm(role){
       <div class="label">Tag Color (type it)</div>
       <input id="addColor" placeholder="e.g. Red"/>
 
+      <div class="label">Description (type it)</div>
+      <input id="addDesc" placeholder="e.g. Black, Grey, Motley face"/>
+
       <div class="label">Cow (Dam) (optional)</div>
       <select id="addDam"><option value="">Unknown (optional)</option></select>
 
@@ -419,6 +442,27 @@ function renderAddForm(role){
 
       <button class="primary" onclick="createCalf()">Save Calf</button>
       <button class="secondary" onclick="goBack('calves')">Cancel</button>
+    `;
+  }
+
+  if(role === 'heifer'){
+    return `
+      <h2>Add Heifer (Existing)</h2>
+
+      <div class="label">Tag #</div>
+      <input id="addHeiferTag" placeholder="e.g. 12"/>
+
+      <div class="label">Tag Color</div>
+      <input id="addHeiferColor" placeholder="e.g. Yellow"/>
+
+      <div class="label">Born (optional)</div>
+      <input id="addHeiferBirth" type="date"/>
+
+      <div class="label">Description</div>
+      <input id="addHeiferDesc" placeholder="e.g. Grey, Motley face"/>
+
+      <button class="primary" onclick="createHeifer()">Save Heifer</button>
+      <button class="secondary" onclick="goBack('heifers')">Cancel</button>
     `;
   }
 
@@ -435,6 +479,9 @@ function renderAddForm(role){
       <div class="label">Born (optional)</div>
       <input id="addCowBirth" type="date"/>
 
+      <div class="label">Description</div>
+      <input id="addCowDesc" placeholder="e.g. Black, Grey"/>
+
       <button class="primary" onclick="createCow()">Save Cow</button>
       <button class="secondary" onclick="goBack('cows')">Cancel</button>
     `;
@@ -447,6 +494,9 @@ function renderAddForm(role){
       <div class="label">Bull # (tag)</div>
       <input id="addBullTag" placeholder="e.g. 25"/>
 
+      <div class="label">Description</div>
+      <input id="addBullDesc" placeholder="e.g. Black, big frame"/>
+
       <div class="label">Notes (optional)</div>
       <textarea id="addBullNotes" placeholder="Anything you want to remember about this bull"></textarea>
 
@@ -458,66 +508,77 @@ function renderAddForm(role){
   return `<div>Unknown add type.</div>`;
 }
 
-function createCalf(){
-  const sex = addSex.value;
-  const birth = addBirth.value || "";
-  const tag = addTag.value || "";
-  const color = addColor.value || "";
-  const damId = addDam.value ? Number(addDam.value) : null;
-  const sireId = addSire.value ? Number(addSire.value) : null;
-
-  animals.push({
+function baseAnimal(){
+  return {
     id: uid(),
-    role: 'calf',
     sold: false,
-    sex,
-    tag,
-    color,
-    birth,
-    damId,
-    sireId,
-    cut: (sex === 'Male') ? 'No' : null,
-    vaccines: [],
-    notes: ""
-  });
-  saveAll();
-  show('calves');
-}
-
-function createCow(){
-  animals.push({
-    id: uid(),
-    role: 'cow',
-    sold: false,
-    sex: 'Female',
-    tag: addCowTag.value || "",
-    color: addCowColor.value || "",
-    birth: addCowBirth.value || "",
-    damId: null,
-    sireId: null,
-    cut: null,
-    vaccines: [],
-    notes: ""
-  });
-  saveAll();
-  show('cows');
-}
-
-function createBull(){
-  animals.push({
-    id: uid(),
-    role: 'bull',
-    sold: false,
-    sex: 'Male',
-    tag: addBullTag.value || "",
+    tag: "",
     color: "",
+    description: "",
     birth: "",
     damId: null,
     sireId: null,
     cut: null,
     vaccines: [],
-    notes: addBullNotes.value || ""
-  });
+    notes: "",
+    lockAfterPromote: false
+  };
+}
+
+function createCalf(){
+  const a = baseAnimal();
+  a.role = 'calf';
+  a.sex = addSex.value;
+  a.birth = addBirth.value || "";
+  a.tag = addTag.value || "";
+  a.color = addColor.value || "";
+  a.description = (document.getElementById('addDesc').value || "");
+  a.damId = addDam.value ? Number(addDam.value) : null;
+  a.sireId = addSire.value ? Number(addSire.value) : null;
+  a.cut = (a.sex === 'Male') ? 'No' : null;
+  a.lockAfterPromote = false; // becomes true when promoted from calf
+  animals.push(a);
+  saveAll();
+  show('calves');
+}
+
+function createHeifer(){
+  const a = baseAnimal();
+  a.role = 'heifer';
+  a.sex = 'Female';
+  a.tag = addHeiferTag.value || "";
+  a.color = addHeiferColor.value || "";
+  a.birth = addHeiferBirth.value || "";
+  a.description = addHeiferDesc.value || "";
+  a.lockAfterPromote = false; // since not promoted from calf
+  animals.push(a);
+  saveAll();
+  show('heifers');
+}
+
+function createCow(){
+  const a = baseAnimal();
+  a.role = 'cow';
+  a.sex = 'Female';
+  a.tag = addCowTag.value || "";
+  a.color = addCowColor.value || "";
+  a.birth = addCowBirth.value || "";
+  a.description = addCowDesc.value || "";
+  a.lockAfterPromote = false;
+  animals.push(a);
+  saveAll();
+  show('cows');
+}
+
+function createBull(){
+  const a = baseAnimal();
+  a.role = 'bull';
+  a.sex = 'Male';
+  a.tag = addBullTag.value || "";
+  a.description = addBullDesc.value || "";
+  a.notes = addBullNotes.value || "";
+  a.lockAfterPromote = false;
+  animals.push(a);
   saveAll();
   show('bulls');
 }
@@ -539,9 +600,8 @@ function openDetail(id){
 
 function renderDetail(){
   const a = draft;
-  const locked = isLocked(a);
+  const locked = isPromotedLocked(a); // only locks promoted animals
 
-  // Related lists for cow/bull
   const herCalves = (a.role === 'cow')
     ? animals.filter(x => !x.sold && x.damId && Number(x.damId) === a.id)
     : [];
@@ -551,7 +611,6 @@ function renderDetail(){
 
   const vaccinesUI = renderVaccinesUI(a);
 
-  // Dam/Sire dropdown options (only for calf; locked for heifer/cow)
   const cows = animals.filter(x => x.role==='cow' && !x.sold);
   const bulls = animals.filter(x => x.role==='bull' && !x.sold);
 
@@ -591,17 +650,33 @@ function renderDetail(){
   const soldBtnText = a.sold ? "Unmark Sold (Restore)" : "Mark Sold";
   const soldBtnClass = a.sold ? "secondary" : "danger";
 
+  // Description edit rules:
+  // - editable for calves always
+  // - editable for heifer/cow ONLY if NOT locked (meaning it wasn't promoted from calf)
+  // - editable for bulls always
+  const canEditDescription =
+    (a.role === 'calf') ||
+    (a.role === 'bull') ||
+    ((a.role === 'heifer' || a.role === 'cow') && !locked);
+
   detail.innerHTML = `
     <h2>${roleLabel(a.role)}</h2>
 
     <div class="label">Tag</div>
-    <input id="eTag" value="${a.tag || ''}" placeholder="(optional)"/>
+    <input id="eTag" value="${escapeHtml(a.tag || '')}" placeholder="(optional)"/>
 
     <div class="label">Tag Color</div>
-    <input id="eColor" value="${a.color || ''}" placeholder="(type it)"/>
+    <input id="eColor" value="${escapeHtml(a.color || '')}" placeholder="(type it)"/>
 
     <div class="label">Born</div>
-    <input id="eBirth" type="date" value="${a.birth || ''}" />
+    <input id="eBirth" type="date" value="${escapeHtml(a.birth || '')}" />
+
+    <div class="label">Description</div>
+    ${canEditDescription
+      ? `<input id="eDesc" value="${escapeHtml(a.description || '')}" placeholder="e.g. Black, Grey, Motley face"/>`
+      : `<div class="pill">${escapeHtml(a.description || '—')}</div>
+         <div class="lockNote">Description is locked after promotion.</div>`
+    }
 
     <div class="hr"></div>
 
@@ -620,7 +695,7 @@ function renderDetail(){
     <div class="hr"></div>
 
     <div class="label">Notes</div>
-    <textarea id="eNotes" placeholder="Optional notes...">${a.notes || ''}</textarea>
+    <textarea id="eNotes" placeholder="Optional notes...">${escapeHtml(a.notes || '')}</textarea>
 
     ${a.role === 'cow' ? `
       <div class="hr"></div>
@@ -652,9 +727,6 @@ function renderDetail(){
 
     <div class="note">Back discards unsaved changes. Use “Save Changes” to keep edits.</div>
   `;
-
-  // If calf locked? (heifer/cow locks are display-only; calf is editable)
-  // Vaccine selection highlighting is handled inside renderVaccinesUI and click handlers.
 }
 
 function renderVaccinesUI(a){
@@ -662,7 +734,7 @@ function renderVaccinesUI(a){
   const list = v.length
     ? v.map((vx, idx) => `
       <div class="pill ${selectedVaxIndex===idx?'active':''}" onclick="selectVax(${idx})">
-        ${vx.date || '—'}${vx.note ? " — " + escapeHtml(vx.note) : ""}
+        ${escapeHtml(vx.date || '—')}${vx.note ? " — " + escapeHtml(vx.note) : ""}
       </div>
     `).join('')
     : `<div class="pill">None</div>`;
@@ -676,10 +748,10 @@ function renderVaccinesUI(a){
     ${list}
 
     <div class="label">Vaccine Date</div>
-    <input id="vDate" type="date" value="${selected.date || ''}"/>
+    <input id="vDate" type="date" value="${escapeHtml(selected.date || '')}"/>
 
     <div class="label">Vaccine Note (optional)</div>
-    <input id="vNote" value="${selected.note || ''}" placeholder="e.g. Normak"/>
+    <input id="vNote" value="${escapeHtml(selected.note || '')}" placeholder="e.g. Normak"/>
 
     <button class="secondary" onclick="addOrUpdateVax()">Add / Update Vaccine</button>
     <button class="danger" onclick="deleteVax()">Delete Vaccine</button>
@@ -738,20 +810,22 @@ function deleteVax(){
 function saveChanges(){
   const a = draft;
 
-  // Apply form fields into draft
   a.tag = document.getElementById('eTag').value || "";
   a.color = document.getElementById('eColor').value || "";
   a.birth = document.getElementById('eBirth').value || "";
   a.notes = document.getElementById('eNotes').value || "";
 
-  // For calf only: dam/sire editable
+  // Description if editable
+  const eDesc = document.getElementById('eDesc');
+  if(eDesc) a.description = eDesc.value || "";
+
+  // For calf only: dam/sire editable (and cut)
   if(a.role === 'calf'){
     const damSel = document.getElementById('eDam');
     const sireSel = document.getElementById('eSire');
     if(damSel) a.damId = damSel.value ? Number(damSel.value) : null;
     if(sireSel) a.sireId = sireSel.value ? Number(sireSel.value) : null;
 
-    // Cut for male calves
     if(a.sex === 'Male'){
       const cutSel = document.getElementById('eCut');
       if(cutSel) a.cut = cutSel.value;
@@ -759,14 +833,12 @@ function saveChanges(){
     }
   }
 
-  // Commit draft into animals
   const idx = animals.findIndex(x => x.id === editingId);
   if(idx === -1){ alert("Could not save (animal missing)."); return; }
 
   animals[idx] = JSON.parse(JSON.stringify(a));
   saveAll();
 
-  // reset snapshots
   originalDraftSnapshot = JSON.parse(JSON.stringify(a));
   alert("Saved.");
   renderDetail();
@@ -774,18 +846,19 @@ function saveChanges(){
 
 function promote(){
   if(!draft) return;
+
+  if(hasUnsavedChanges()){
+    alert("Please Save Changes before promoting.");
+    return;
+  }
+
   if(draft.role === 'calf'){
     if(draft.sex === 'Male'){ alert("Male calves cannot be promoted."); return; }
-    if(!confirm("Promote this calf to Heifer? (Sex/Dam/Sire will be locked after promotion.)")) return;
-
-    // MUST SAVE before promote? We'll force save if changes exist.
-    if(hasUnsavedChanges()){
-      alert("Please Save Changes before promoting.");
-      return;
-    }
+    if(!confirm("Promote this calf to Heifer? (Sex/Dam/Sire/Description will be locked after promotion.)")) return;
 
     const idx = animals.findIndex(x => x.id === editingId);
     animals[idx].role = 'heifer';
+    animals[idx].lockAfterPromote = true; // THIS makes description permanent in heifer/cow
     saveAll();
 
     openDetail(editingId);
@@ -794,15 +867,11 @@ function promote(){
   }
 
   if(draft.role === 'heifer'){
-    if(!confirm("Promote this heifer to Cow? (Dam/Sire stays locked.)")) return;
-
-    if(hasUnsavedChanges()){
-      alert("Please Save Changes before promoting.");
-      return;
-    }
+    if(!confirm("Promote this heifer to Cow?")) return;
 
     const idx = animals.findIndex(x => x.id === editingId);
     animals[idx].role = 'cow';
+    // keep lockAfterPromote as-is
     saveAll();
 
     openDetail(editingId);
@@ -841,7 +910,6 @@ function deleteAnimal(){
   animals = animals.filter(x => x.id !== editingId);
   saveAll();
 
-  // Clear editor state
   editingId = null;
   draft = null;
   selectedVaxIndex = null;
@@ -851,24 +919,12 @@ function deleteAnimal(){
 }
 
 /* =========================
-   Init (seed helper)
+   Init
 ========================= */
 function init(){
-  // Ensure arrays exist
   if(!Array.isArray(animals)) animals = [];
-
-  // If you want a quick “example cow/bull” on first run, uncomment below:
-  /*
-  if(animals.length === 0){
-    animals.push({id:uid(),role:'cow',sold:false,sex:'Female',tag:'42',color:'Red',birth:'',damId:null,sireId:null,cut:null,vaccines:[],notes:''});
-    animals.push({id:uid(),role:'bull',sold:false,sex:'Male',tag:'414',color:'',birth:'',damId:null,sireId:null,cut:null,vaccines:[],notes:''});
-    saveAll();
-  }
-  */
-
   show('home');
 }
-
 init();
 </script>
 </body>
