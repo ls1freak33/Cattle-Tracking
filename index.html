@@ -36,6 +36,28 @@
     .modalInner{background:#111;color:#fff;padding:10px}
     .modalInner img{width:100%;height:auto;display:block;border-radius:10px}
     .modalBtns{background:#000;padding:10px}
+
+    /* clickable calf cards inside cow page */
+    .miniCard{
+      border:1px solid var(--line);
+      background:#fff;
+      padding:10px;
+      border-radius:10px;
+      margin:8px 0;
+      cursor:pointer;
+    }
+    .miniTop{font-weight:bold}
+    .pill{
+      display:inline-block;
+      padding:2px 8px;
+      border-radius:999px;
+      font-size:12px;
+      margin-left:8px;
+      background:#eee;
+      color:#333;
+      vertical-align:middle;
+    }
+    .pill.sold{background:#ffe0e0;color:#8a1f1f}
   </style>
 </head>
 <body>
@@ -323,13 +345,34 @@ function renderDetail(){
   const dam = editing.damId ? animals.find(x=>String(x.id)===String(editing.damId)) : null;
   const sire = editing.sireId ? animals.find(x=>String(x.id)===String(editing.sireId)) : null;
 
-  const cowCalves = (editing.role==="cow")
+  // IMPORTANT CHANGE: for cows, show ALL calves (active + sold)
+  const cowCalvesAll = (editing.role==="cow")
     ? animals.filter(x =>
         (x.role==="calf" || x.role==="heifer" || x.role==="cow") &&
-        String(x.damId||"")===String(editing.id) &&
-        !x.sold
+        String(x.damId||"")===String(editing.id)
       )
     : [];
+
+  const total = cowCalvesAll.length;
+  const maleCount = cowCalvesAll.filter(x=>x.sex==="Male").length;
+  const femaleCount = cowCalvesAll.filter(x=>x.sex==="Female").length;
+  const soldCount = cowCalvesAll.filter(x=>x.sold).length;
+
+  const cowCalfHtml = cowCalvesAll.length ? cowCalvesAll
+    .sort((a,b)=> (b.born||"").localeCompare(a.born||""))
+    .map(x=>`
+      <div class="miniCard" onclick="openAnimal(${x.id})">
+        <div class="miniTop">
+          ${escape(x.role.toUpperCase())} | Tag ${escape(x.tag||"—")} | ${escape(x.sex||"")}
+          ${x.sold ? `<span class="pill sold">SOLD</span>` : ``}
+        </div>
+        <div class="muted">
+          ${x.born ? "Born: "+escape(x.born)+" • " : ""}
+          ${x.desc ? escape(x.desc) : ""}
+        </div>
+      </div>
+    `).join("")
+    : `<div class="badge">None linked yet.</div>`;
 
   const vHtml = (editing.vaccines||[]).length
     ? editing.vaccines.map((v,idx)=>`
@@ -421,11 +464,13 @@ function renderDetail(){
 
     ${(editing.role==="cow") ? `
       <h3>Calves Produced</h3>
-      ${cowCalves.length ? cowCalves.map(x=>`
-        <div class="badge">
-          ${escape(x.role.toUpperCase())} | Tag ${escape(x.tag||"—")} | ${escape(x.sex||"")}
-        </div>
-      `).join("") : `<div class="badge">None linked yet.</div>`}
+      <div class="badge">
+        <b>Total:</b> ${total} &nbsp; | &nbsp;
+        <b>Female:</b> ${femaleCount} &nbsp; | &nbsp;
+        <b>Male:</b> ${maleCount} &nbsp; | &nbsp;
+        <b>Sold:</b> ${soldCount}
+      </div>
+      ${cowCalfHtml}
     ` : ""}
 
     <h3>Vaccines</h3>
@@ -554,7 +599,7 @@ function addVax(){
   if(!editing.vaccines) editing.vaccines = [];
   editing.vaccines.push({date:d, note:n});
   dirty = true;
-  renderDetail();  // IMPORTANT FIX: render without reloading from animals
+  renderDetail();
 }
 
 function editVax(idx){
