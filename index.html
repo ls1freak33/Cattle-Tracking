@@ -84,12 +84,80 @@
   .topSearch button{margin:0;width:auto;white-space:nowrap;padding:12px 14px;border-radius:10px}
   .note{font-size:13px;color:var(--muted)}
   .lockNote{font-size:12px;color:var(--muted);margin-top:6px}
+
+  /* Photo grid */
+  .photoGrid{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap:10px;
+    margin-top:10px;
+  }
+  .thumb{
+    width:100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius:10px;
+    border:1px solid rgba(0,0,0,.08);
+    background:#eee;
+  }
+  .thumbWrap{position:relative}
+  .thumbDel{
+    position:absolute;
+    top:6px;
+    right:6px;
+    background:rgba(198,40,40,0.95);
+    color:#fff;
+    border:none;
+    border-radius:999px;
+    width:28px;
+    height:28px;
+    font-size:18px;
+    line-height:28px;
+    padding:0;
+    cursor:pointer;
+  }
+
+  /* Modal */
+  .modalOverlay{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.7);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:14px;
+    z-index:9999;
+  }
+  .modal{
+    background:#111;
+    border-radius:14px;
+    width:100%;
+    max-width:520px;
+    overflow:hidden;
+  }
+  .modal img{
+    width:100%;
+    height:auto;
+    display:block;
+  }
+  .modalBar{
+    display:flex;
+    gap:10px;
+    padding:10px;
+    background:#000;
+  }
+  .modalBar button{
+    margin:0;
+    padding:12px;
+    font-size:15px;
+    border-radius:10px;
+  }
 </style>
 </head>
 
 <body>
   <h1>🐄 Cattle Tracker</h1>
-  <div class="sub">Offline-ready • Stores data on this device</div>
+  <div class="sub">Offline-ready • Data & photos stored on this device</div>
 
   <div id="screens">
 
@@ -108,7 +176,7 @@
 
       <div class="card">
         <div class="note">
-          Tip: Your info is saved in your browser (localStorage). If you clear browser data, it clears this app.
+          Photos are saved in your browser storage (IndexedDB). If you clear Safari website data, it clears the app.
         </div>
       </div>
     </div>
@@ -176,7 +244,7 @@
       <button class="secondary" onclick="goBack('home')">Back</button>
     </div>
 
-    <!-- ADD SCREEN (reused) -->
+    <!-- ADD SCREEN -->
     <div id="add" class="card hidden"></div>
 
     <!-- DETAIL SCREEN -->
@@ -184,12 +252,94 @@
 
   </div>
 
+  <!-- Photo Modal -->
+  <div id="modalOverlay" class="modalOverlay hidden" onclick="closeModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <img id="modalImg" alt="Photo"/>
+      <div class="modalBar">
+        <button class="secondary" onclick="closeModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
 <script>
+/* =========================
+   IndexedDB for Photos
+   - Store: "photos"
+   - Key: photoId (number)
+   - Value: { photoId, animalId, blob, createdAt }
+========================= */
+const DB_NAME = 'cattle_tracker_db';
+const DB_VERSION = 1;
+let dbPromise = null;
+
+function openPhotoDB(){
+  if(dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if(!db.objectStoreNames.contains('photos')){
+        const store = db.createObjectStore('photos', { keyPath: 'photoId' });
+        store.createIndex('byAnimal', 'animalId', { unique: false });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return dbPromise;
+}
+
+async function putPhotoRecord(record){
+  const db = await openPhotoDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('photos', 'readwrite');
+    tx.objectStore('photos').put(record);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function getPhotoRecord(photoId){
+  const db = await openPhotoDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('photos', 'readonly');
+    const req = tx.objectStore('photos').get(photoId);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function deletePhotoRecord(photoId){
+  const db = await openPhotoDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('photos', 'readwrite');
+    tx.objectStore('photos').delete(photoId);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function getPhotoIdsForAnimal(animalId){
+  const db = await openPhotoDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('photos', 'readonly');
+    const idx = tx.objectStore('photos').index('byAnimal');
+    const req = idx.getAllKeys(animalId);
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function blobToURL(blob){
+  return URL.createObjectURL(blob);
+}
+
 /* =========================
    Storage + Utilities
 ========================= */
-let animals = JSON.parse(localStorage.getItem('animals') || '[]'); // single truth
-let screenStack = []; // navigation
+let animals = JSON.parse(localStorage.getItem('animals') || '[]');
+let screenStack = [];
 let editingId = null;
 let draft = null;
 let selectedVaxIndex = null;
@@ -227,15 +377,7 @@ function fmtSire(sireId){
   return s ? ("Bull " + safeTag(s)) : "Unknown";
 }
 
-/*
-  Lock rules (per your request):
-  - After calf -> heifer promotion: Sex/Dam/Sire/Description become locked.
-  - After heifer -> cow promotion: same stays locked.
-  - For cows/bulls created directly: NOT locked (editable).
-*/
 function isPromotedLocked(a){
-  // Locked only if the animal is a heifer/cow AND it came from promotion from a calf.
-  // We'll track this with a boolean flag: a.lockAfterPromote === true
   return (a.lockAfterPromote === true) && (a.role === 'heifer' || a.role === 'cow');
 }
 
@@ -301,28 +443,24 @@ function shortDesc(a){
 }
 
 function refresh(){
-  // CALVES
   const calfQ = document.getElementById('calfSearch')?.value || '';
+  const heiferQ = document.getElementById('heiferSearch')?.value || '';
+  const cowQ = document.getElementById('cowSearch')?.value || '';
+  const bullQ = document.getElementById('bullSearch')?.value || '';
+  const soldQ = document.getElementById('soldSearch')?.value || '';
+
   const calves = animals.filter(a => a.role==='calf' && !a.sold).filter(a => matchesTag(a, calfQ));
   calfList.innerHTML = calves.map(renderListItem).join('') || `<div class="card">No calves yet.</div>`;
 
-  // HEIFERS
-  const heiferQ = document.getElementById('heiferSearch')?.value || '';
   const heifers = animals.filter(a => a.role==='heifer' && !a.sold).filter(a => matchesTag(a, heiferQ));
   heiferList.innerHTML = heifers.map(renderListItem).join('') || `<div class="card">No heifers yet.</div>`;
 
-  // COWS
-  const cowQ = document.getElementById('cowSearch')?.value || '';
   const cows = animals.filter(a => a.role==='cow' && !a.sold).filter(a => matchesTag(a, cowQ));
   cowList.innerHTML = cows.map(renderListItem).join('') || `<div class="card">No cows yet.</div>`;
 
-  // BULLS
-  const bullQ = document.getElementById('bullSearch')?.value || '';
   const bulls = animals.filter(a => a.role==='bull' && !a.sold).filter(a => matchesTag(a, bullQ));
   bullList.innerHTML = bulls.map(renderListItem).join('') || `<div class="card">No bulls yet.</div>`;
 
-  // SOLD
-  const soldQ = document.getElementById('soldSearch')?.value || '';
   const sold = animals.filter(a => a.sold).filter(a => matchesTag(a, soldQ));
   soldList.innerHTML = sold.map(renderListItem).join('') || `<div class="card">No sold/history yet.</div>`;
 }
@@ -330,6 +468,7 @@ function refresh(){
 function renderListItem(a){
   const metaBits = [];
   const desc = shortDesc(a);
+  const photoCount = Array.isArray(a.photoIds) ? a.photoIds.length : 0;
 
   if(a.role === 'calf'){
     metaBits.push(a.sex || '');
@@ -352,6 +491,7 @@ function renderListItem(a){
     if(desc) metaBits.push(desc);
   }
   if(a.sold) metaBits.push("SOLD");
+  if(photoCount) metaBits.push("Photos: " + photoCount);
 
   return `
     <div class="listItem" onclick="openDetail(${a.id})">
@@ -431,7 +571,7 @@ function renderAddForm(role){
       <div class="label">Tag Color (type it)</div>
       <input id="addColor" placeholder="e.g. Red"/>
 
-      <div class="label">Description (type it)</div>
+      <div class="label">Description</div>
       <input id="addDesc" placeholder="e.g. Black, Grey, Motley face"/>
 
       <div class="label">Cow (Dam) (optional)</div>
@@ -521,7 +661,8 @@ function baseAnimal(){
     cut: null,
     vaccines: [],
     notes: "",
-    lockAfterPromote: false
+    lockAfterPromote: false,
+    photoIds: [] // photoId list (points to IndexedDB)
   };
 }
 
@@ -536,7 +677,7 @@ function createCalf(){
   a.damId = addDam.value ? Number(addDam.value) : null;
   a.sireId = addSire.value ? Number(addSire.value) : null;
   a.cut = (a.sex === 'Male') ? 'No' : null;
-  a.lockAfterPromote = false; // becomes true when promoted from calf
+  a.lockAfterPromote = false;
   animals.push(a);
   saveAll();
   show('calves');
@@ -550,7 +691,7 @@ function createHeifer(){
   a.color = addHeiferColor.value || "";
   a.birth = addHeiferBirth.value || "";
   a.description = addHeiferDesc.value || "";
-  a.lockAfterPromote = false; // since not promoted from calf
+  a.lockAfterPromote = false;
   animals.push(a);
   saveAll();
   show('heifers');
@@ -584,7 +725,7 @@ function createBull(){
 }
 
 /* =========================
-   Detail Screen
+   Detail Screen + Photos
 ========================= */
 function openDetail(id){
   confirmIfUnsaved(() => {
@@ -598,9 +739,106 @@ function openDetail(id){
   });
 }
 
-function renderDetail(){
+async function renderPhotoGrid(animal){
+  // Always sync ids from DB (in case)
+  const ids = Array.isArray(animal.photoIds) ? animal.photoIds : [];
+  if(!ids.length){
+    return `<div class="pill">No photos yet.</div>`;
+  }
+
+  // Create thumbs by loading each blob and making object URL
+  let html = `<div class="photoGrid">`;
+  for(const pid of ids){
+    const rec = await getPhotoRecord(pid);
+    if(!rec || !rec.blob) continue;
+    const url = blobToURL(rec.blob);
+    html += `
+      <div class="thumbWrap">
+        <img class="thumb" src="${url}" alt="photo" onclick="openModalByPhotoId(${pid})"/>
+        <button class="thumbDel" onclick="event.stopPropagation();deletePhotoFromAnimal(${pid})">×</button>
+      </div>
+    `;
+  }
+  html += `</div>`;
+  return html;
+}
+
+async function openModalByPhotoId(photoId){
+  const rec = await getPhotoRecord(photoId);
+  if(!rec || !rec.blob){
+    alert("Photo not found.");
+    return;
+  }
+  const url = blobToURL(rec.blob);
+  modalImg.src = url;
+  modalOverlay.classList.remove('hidden');
+}
+
+function closeModal(){
+  modalOverlay.classList.add('hidden');
+  modalImg.src = "";
+}
+
+async function addPhotosFromInput(){
+  const input = document.getElementById('photoInput');
+  if(!input || !input.files || !input.files.length) return;
+
+  const animalIndex = animals.findIndex(x => x.id === editingId);
+  if(animalIndex === -1){ alert("Animal missing."); return; }
+
+  // Add each photo to IndexedDB + attach photoId to animal record immediately
+  for(const file of input.files){
+    const photoId = uid();
+    await putPhotoRecord({
+      photoId,
+      animalId: editingId,
+      blob: file,
+      createdAt: Date.now()
+    });
+
+    if(!Array.isArray(animals[animalIndex].photoIds)) animals[animalIndex].photoIds = [];
+    animals[animalIndex].photoIds.push(photoId);
+  }
+
+  saveAll();
+
+  // Keep draft in sync too (so UI updates)
+  const fresh = byId(editingId);
+  draft.photoIds = JSON.parse(JSON.stringify(fresh.photoIds || []));
+
+  // reset chooser
+  input.value = "";
+
+  // re-render
+  originalDraftSnapshot = JSON.parse(JSON.stringify(draft));
+  renderDetail();
+}
+
+async function deletePhotoFromAnimal(photoId){
+  if(!confirm("Delete this photo?")) return;
+
+  const idx = animals.findIndex(x => x.id === editingId);
+  if(idx === -1) return;
+
+  // Remove link
+  animals[idx].photoIds = (animals[idx].photoIds || []).filter(id => id !== photoId);
+
+  // Delete blob
+  await deletePhotoRecord(photoId);
+
+  saveAll();
+
+  // Sync draft
+  const fresh = byId(editingId);
+  draft.photoIds = JSON.parse(JSON.stringify(fresh.photoIds || []));
+
+  originalDraftSnapshot = JSON.parse(JSON.stringify(draft));
+  renderDetail();
+}
+
+async function renderDetail(){
   const a = draft;
-  const locked = isPromotedLocked(a); // only locks promoted animals
+  const locked = isPromotedLocked(a);
 
   const herCalves = (a.role === 'cow')
     ? animals.filter(x => !x.sold && x.damId && Number(x.damId) === a.id)
@@ -608,8 +846,6 @@ function renderDetail(){
   const hisCalves = (a.role === 'bull')
     ? animals.filter(x => !x.sold && x.sireId && Number(x.sireId) === a.id)
     : [];
-
-  const vaccinesUI = renderVaccinesUI(a);
 
   const cows = animals.filter(x => x.role==='cow' && !x.sold);
   const bulls = animals.filter(x => x.role==='bull' && !x.sold);
@@ -650,14 +886,26 @@ function renderDetail(){
   const soldBtnText = a.sold ? "Unmark Sold (Restore)" : "Mark Sold";
   const soldBtnClass = a.sold ? "secondary" : "danger";
 
-  // Description edit rules:
-  // - editable for calves always
-  // - editable for heifer/cow ONLY if NOT locked (meaning it wasn't promoted from calf)
-  // - editable for bulls always
   const canEditDescription =
     (a.role === 'calf') ||
     (a.role === 'bull') ||
     ((a.role === 'heifer' || a.role === 'cow') && !locked);
+
+  // Vaccines UI
+  const v = Array.isArray(a.vaccines) ? a.vaccines : [];
+  const vList = v.length
+    ? v.map((vx, idx) => `
+      <div class="pill ${selectedVaxIndex===idx?'active':''}" onclick="selectVax(${idx})">
+        ${escapeHtml(vx.date || '—')}${vx.note ? " — " + escapeHtml(vx.note) : ""}
+      </div>
+    `).join('')
+    : `<div class="pill">None</div>`;
+
+  const selected = (selectedVaxIndex !== null && v[selectedVaxIndex])
+    ? v[selectedVaxIndex]
+    : {date:'', note:''};
+
+  const photoGridHTML = await renderPhotoGrid(a);
 
   detail.innerHTML = `
     <h2>${roleLabel(a.role)}</h2>
@@ -690,7 +938,25 @@ function renderDetail(){
 
     <div class="hr"></div>
 
-    ${vaccinesUI}
+    <h3>Vaccines</h3>
+    ${vList}
+
+    <div class="label">Vaccine Date</div>
+    <input id="vDate" type="date" value="${escapeHtml(selected.date || '')}"/>
+
+    <div class="label">Vaccine Note (optional)</div>
+    <input id="vNote" value="${escapeHtml(selected.note || '')}" placeholder="e.g. Normak"/>
+
+    <button class="secondary" onclick="addOrUpdateVax()">Add / Update Vaccine</button>
+    <button class="danger" onclick="deleteVax()">Delete Vaccine</button>
+
+    <div class="hr"></div>
+
+    <h3>Photos</h3>
+    <div class="note">Tap a photo to view large. Photos save immediately to this device.</div>
+    <input id="photoInput" type="file" accept="image/*" multiple capture="environment" />
+    <button class="secondary" onclick="addPhotosFromInput()">Add Selected Photos</button>
+    ${photoGridHTML}
 
     <div class="hr"></div>
 
@@ -729,35 +995,6 @@ function renderDetail(){
   `;
 }
 
-function renderVaccinesUI(a){
-  const v = Array.isArray(a.vaccines) ? a.vaccines : [];
-  const list = v.length
-    ? v.map((vx, idx) => `
-      <div class="pill ${selectedVaxIndex===idx?'active':''}" onclick="selectVax(${idx})">
-        ${escapeHtml(vx.date || '—')}${vx.note ? " — " + escapeHtml(vx.note) : ""}
-      </div>
-    `).join('')
-    : `<div class="pill">None</div>`;
-
-  const selected = (selectedVaxIndex !== null && v[selectedVaxIndex])
-    ? v[selectedVaxIndex]
-    : {date:'', note:''};
-
-  return `
-    <h3>Vaccines</h3>
-    ${list}
-
-    <div class="label">Vaccine Date</div>
-    <input id="vDate" type="date" value="${escapeHtml(selected.date || '')}"/>
-
-    <div class="label">Vaccine Note (optional)</div>
-    <input id="vNote" value="${escapeHtml(selected.note || '')}" placeholder="e.g. Normak"/>
-
-    <button class="secondary" onclick="addOrUpdateVax()">Add / Update Vaccine</button>
-    <button class="danger" onclick="deleteVax()">Delete Vaccine</button>
-  `;
-}
-
 function escapeHtml(s){
   return String(s||'')
     .replaceAll('&','&amp;')
@@ -768,7 +1005,7 @@ function escapeHtml(s){
 }
 
 /* =========================
-   Vaccine Handlers (draft-only until Save Changes)
+   Vaccines (draft until Save)
 ========================= */
 function selectVax(idx){
   selectedVaxIndex = idx;
@@ -815,11 +1052,9 @@ function saveChanges(){
   a.birth = document.getElementById('eBirth').value || "";
   a.notes = document.getElementById('eNotes').value || "";
 
-  // Description if editable
   const eDesc = document.getElementById('eDesc');
   if(eDesc) a.description = eDesc.value || "";
 
-  // For calf only: dam/sire editable (and cut)
   if(a.role === 'calf'){
     const damSel = document.getElementById('eDam');
     const sireSel = document.getElementById('eSire');
@@ -835,6 +1070,9 @@ function saveChanges(){
 
   const idx = animals.findIndex(x => x.id === editingId);
   if(idx === -1){ alert("Could not save (animal missing)."); return; }
+
+  // Preserve photoIds (already in record), but keep draft copy
+  if(!Array.isArray(a.photoIds)) a.photoIds = animals[idx].photoIds || [];
 
   animals[idx] = JSON.parse(JSON.stringify(a));
   saveAll();
@@ -858,7 +1096,7 @@ function promote(){
 
     const idx = animals.findIndex(x => x.id === editingId);
     animals[idx].role = 'heifer';
-    animals[idx].lockAfterPromote = true; // THIS makes description permanent in heifer/cow
+    animals[idx].lockAfterPromote = true;
     saveAll();
 
     openDetail(editingId);
@@ -871,7 +1109,6 @@ function promote(){
 
     const idx = animals.findIndex(x => x.id === editingId);
     animals[idx].role = 'cow';
-    // keep lockAfterPromote as-is
     saveAll();
 
     openDetail(editingId);
@@ -903,9 +1140,15 @@ function toggleSold(){
   openDetail(editingId);
 }
 
-function deleteAnimal(){
+async function deleteAnimal(){
   if(!draft) return;
-  if(!confirm("DELETE permanently? This cannot be undone.")) return;
+  if(!confirm("DELETE permanently? This cannot be undone (including photos).")) return;
+
+  // delete photos
+  const ids = Array.isArray(draft.photoIds) ? draft.photoIds : [];
+  for(const pid of ids){
+    await deletePhotoRecord(pid);
+  }
 
   animals = animals.filter(x => x.id !== editingId);
   saveAll();
@@ -919,10 +1162,19 @@ function deleteAnimal(){
 }
 
 /* =========================
+   Modal
+========================= */
+function openModal(url){
+  modalImg.src = url;
+  modalOverlay.classList.remove('hidden');
+}
+
+/* =========================
    Init
 ========================= */
-function init(){
+async function init(){
   if(!Array.isArray(animals)) animals = [];
+  await openPhotoDB(); // ensure db ready
   show('home');
 }
 init();
