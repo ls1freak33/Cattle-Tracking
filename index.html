@@ -15,11 +15,15 @@
     .danger{background:var(--danger)}
     input,select{width:100%;padding:12px;margin:6px 0;border-radius:8px;border:1px solid #ccc}
     .card{background:var(--card);padding:15px;border-radius:12px;margin-top:12px}
-    .hidden{display:none}
     .list{cursor:pointer}
     .row{display:flex;gap:8px}
     .row > *{flex:1}
     .badge{background:#e8f5e9;padding:8px;border-radius:6px;margin:6px 0}
+    .muted{color:#666;font-size:12px;margin-top:4px}
+
+    /* IMPORTANT FIX: hidden must beat modalBack */
+    .hidden{display:none !important;}
+
     .modalBack{
       position:fixed;left:0;top:0;width:100%;height:100%;
       background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;
@@ -136,7 +140,7 @@
 
 </div>
 
-<!-- PHOTO MODAL (SAFE: starts hidden, never opened on load) -->
+<!-- PHOTO MODAL (SAFE) -->
 <div id="photoModal" class="modalBack hidden" onclick="closePhoto(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modalInner">
@@ -150,8 +154,8 @@
 
 <script>
 /*** STORAGE ***/
-let animals = JSON.parse(localStorage.getItem("animals") || "[]"); // calves/heifers/cows/bulls all together
-let editing = null;
+let animals = JSON.parse(localStorage.getItem("animals") || "[]");
+let editing = null;     // working copy
 let dirty = false;
 
 function saveAll(){
@@ -181,11 +185,11 @@ function show(id){
 }
 
 function refresh(){
-  // lists
-  calfList.innerHTML = listHtml("calf");
+  calfList.innerHTML   = listHtml("calf");
   heiferList.innerHTML = listHtml("heifer");
-  cowList.innerHTML = listHtml("cow");
-  bullList.innerHTML = listHtml("bull");
+  cowList.innerHTML    = listHtml("cow");
+  bullList.innerHTML   = listHtml("bull");
+
   soldList.innerHTML = animals.filter(a=>a.sold).map(a=>`
     <div class="card">
       ${a.role.toUpperCase()} | Tag ${escape(a.tag || "—")} | ${escape(a.desc||"")}
@@ -205,6 +209,7 @@ function listHtml(role){
   return active.map(a=>`
     <div class="card list" onclick="openAnimal(${a.id})">
       ${role.toUpperCase()} | Tag ${escape(a.tag||"—")} | ${escape(a.desc||"")}
+      <div class="muted">${a.born ? "Born: "+escape(a.born) : ""}</div>
     </div>
   `).join("");
 }
@@ -306,20 +311,26 @@ function doSearch(){
 function openAnimal(id){
   const a = animals.find(x=>x.id===id);
   if(!a) return;
-
   editing = JSON.parse(JSON.stringify(a));
   dirty = false;
+  renderDetail();
+  show("detail");
+}
 
-  // linked names
+function renderDetail(){
+  if(!editing) return;
+
   const dam = editing.damId ? animals.find(x=>String(x.id)===String(editing.damId)) : null;
   const sire = editing.sireId ? animals.find(x=>String(x.id)===String(editing.sireId)) : null;
 
-  // calves for a cow (relationship by damId)
   const cowCalves = (editing.role==="cow")
-    ? animals.filter(x => (x.role==="calf" || x.role==="heifer" || x.role==="cow") && String(x.damId||"")===String(editing.id) )
+    ? animals.filter(x =>
+        (x.role==="calf" || x.role==="heifer" || x.role==="cow") &&
+        String(x.damId||"")===String(editing.id) &&
+        !x.sold
+      )
     : [];
 
-  // build vaccine list
   const vHtml = (editing.vaccines||[]).length
     ? editing.vaccines.map((v,idx)=>`
         <div class="badge">
@@ -332,7 +343,6 @@ function openAnimal(id){
       `).join("")
     : `<div class="badge">None</div>`;
 
-  // build photo list (inside animal only)
   const pHtml = (editing.photos||[]).length
     ? editing.photos.map((src,idx)=>`
         <div class="badge">
@@ -345,7 +355,6 @@ function openAnimal(id){
       `).join("")
     : `<div class="badge">None</div>`;
 
-  // dam/sire dropdowns for editing (only for calves/heifers/cows)
   const damSelect = `
     <select id="eDam" onchange="markDirty()">
       <option value="">(No Dam selected)</option>
@@ -368,10 +377,10 @@ function openAnimal(id){
     </select>
   `;
 
-  const roleTitle = editing.role.toUpperCase();
+  const map = {calf:"calves", heifer:"heifers", cow:"cows", bull:"bulls"};
 
   detail.innerHTML = `
-    <h2>${roleTitle}</h2>
+    <h2>${editing.role.toUpperCase()}</h2>
 
     <div class="badge">
       <div><b>Sex:</b> ${escape(editing.sex||"")}${(editing.role!=="calf")?` (locked)`:""}</div>
@@ -448,27 +457,18 @@ function openAnimal(id){
     ${(!editing.sold) ? `<button class="danger" onclick="markSold()">Mark Sold</button>` : ""}
 
     <button class="danger" onclick="deleteAnimal()">Delete</button>
-    <button class="secondary" onclick="backFromDetail()">Back</button>
+    <button class="secondary" onclick="show('${map[editing.role] || "home"}')">Back</button>
   `;
-
-  show("detail");
 }
 
 function markDirty(){ dirty = true; }
-
-function backFromDetail(){
-  // go back to the correct list
-  const map = {calf:"calves", heifer:"heifers", cow:"cows", bull:"bulls"};
-  show(map[editing.role] || "home");
-}
 
 /*** SAVE / DELETE / SOLD / PROMOTE ***/
 function saveEdits(){
   const i = animals.findIndex(x=>x.id===editing.id);
   if(i<0) return;
 
-  // apply edits from form
-  const role = animals[i].role; // original role in storage
+  const role = animals[i].role;
 
   animals[i].tag  = document.getElementById("eTag").value.trim();
   animals[i].color= document.getElementById("eColor").value.trim();
@@ -484,21 +484,19 @@ function saveEdits(){
     animals[i].cut = document.getElementById("eCut")?.value || "No";
   }
 
-  // vaccines/photos live in editing object updates; sync them
   animals[i].vaccines = editing.vaccines || [];
   animals[i].photos   = editing.photos || [];
 
   saveAll();
   dirty = false;
   alert("Saved!");
-  backFromDetail();
 }
 
 function deleteAnimal(){
   if(!confirm("Delete this animal? This cannot be undone.")) return;
+
   animals = animals.filter(x=>x.id!==editing.id);
 
-  // also unlink calves that referenced it as dam/sire
   animals.forEach(x=>{
     if(String(x.damId||"")===String(editing.id)) x.damId = "";
     if(String(x.sireId||"")===String(editing.id)) x.sireId = "";
@@ -507,6 +505,7 @@ function deleteAnimal(){
   saveAll();
   editing = null;
   dirty = false;
+  closePhoto();
   show("home");
 }
 
@@ -529,7 +528,6 @@ function promote(){
     if(animals[i].sex!=="Female"){ alert("Only female calves can be promoted."); return; }
     if(!confirm("Promote this CALF to HEIFER?")) return;
     animals[i].role = "heifer";
-    // keep everything (tag/color/desc/vaccines/photos/dam/sire)
     saveAll();
     editing = null;
     dirty = false;
@@ -540,7 +538,6 @@ function promote(){
   if(animals[i].role==="heifer"){
     if(!confirm("Promote this HEIFER to COW?")) return;
     animals[i].role = "cow";
-    // once cow, dam/sire fields are no longer shown/edited
     saveAll();
     editing = null;
     dirty = false;
@@ -549,7 +546,7 @@ function promote(){
   }
 }
 
-/*** VACCINES (EDIT/DELETE) ***/
+/*** VACCINES ***/
 function addVax(){
   const d = document.getElementById("newVDate").value;
   const n = document.getElementById("newVNote").value.trim();
@@ -557,7 +554,7 @@ function addVax(){
   if(!editing.vaccines) editing.vaccines = [];
   editing.vaccines.push({date:d, note:n});
   dirty = true;
-  openAnimal(editing.id);
+  renderDetail();  // IMPORTANT FIX: render without reloading from animals
 }
 
 function editVax(idx){
@@ -568,26 +565,26 @@ function editVax(idx){
   if(nn===null) return;
   editing.vaccines[idx] = {date: (nd||"").trim(), note: (nn||"").trim()};
   dirty = true;
-  openAnimal(editing.id);
+  renderDetail();
 }
 
 function delVax(idx){
   if(!confirm("Delete this vaccine entry?")) return;
   editing.vaccines.splice(idx,1);
   dirty = true;
-  openAnimal(editing.id);
+  renderDetail();
 }
 
-/*** PHOTOS (MULTIPLE, INSIDE ANIMAL ONLY) ***/
+/*** PHOTOS ***/
 function addPhoto(fileList){
   if(!fileList || !fileList.length) return;
   const file = fileList[0];
   const reader = new FileReader();
   reader.onload = () => {
     if(!editing.photos) editing.photos = [];
-    editing.photos.push(reader.result); // base64 data URL
+    editing.photos.push(reader.result);
     dirty = true;
-    openAnimal(editing.id);
+    renderDetail();
   };
   reader.readAsDataURL(file);
 }
@@ -603,7 +600,7 @@ function delPhoto(idx){
   if(!confirm("Delete this photo?")) return;
   editing.photos.splice(idx,1);
   dirty = true;
-  openAnimal(editing.id);
+  renderDetail();
 }
 
 function closePhoto(){
@@ -615,7 +612,7 @@ function closePhoto(){
 function escape(s){ return String(s||"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 function escapeAttr(s){ return escape(s).replace(/"/g,'&quot;'); }
 
-/// Safe boot: always hide modal
+/*** SAFE BOOT ***/
 closePhoto();
 show("home");
 </script>
