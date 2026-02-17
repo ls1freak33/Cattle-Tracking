@@ -1,1183 +1,624 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Cattle Tracker</title>
-
-<style>
-  :root{
-    --bg:#f2f2f2;
-    --card:#ffffff;
-    --text:#111;
-    --muted:#666;
-    --primary:#2e7d32;
-    --secondary:#0277bd;
-    --danger:#c62828;
-    --warn:#ef6c00;
-    --line:#e5e5e5;
-    --pill:#e8f5e9;
-    --pillActive:#c8e6c9;
-  }
-  body{margin:0;padding:14px;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
-  h1{margin:8px 0 10px;text-align:center;font-size:34px}
-  h2{margin:6px 0 10px}
-  h3{margin:10px 0 8px}
-  .sub{margin-top:-2px;text-align:center;color:var(--muted);font-size:13px}
-  button{width:100%;padding:14px;margin:6px 0;font-size:16px;border-radius:10px;border:none;color:#fff}
-  .primary{background:var(--primary)}
-  .secondary{background:var(--secondary)}
-  .danger{background:var(--danger)}
-  .warn{background:var(--warn)}
-  .ghost{background:#fff;color:var(--secondary);border:1px solid var(--secondary)}
-  .small{width:80%;margin:10px auto}
-  input,select,textarea{
-    width:100%;
-    padding:12px;
-    margin:6px 0;
-    border-radius:8px;
-    border:1px solid #ccc;
-    background:#fff;
-    box-sizing:border-box;
-    font-size:16px;
-  }
-  textarea{min-height:80px;resize:vertical}
-  .card{
-    background:var(--card);
-    padding:15px;
-    border-radius:12px;
-    margin-top:12px;
-    box-shadow:0 1px 0 rgba(0,0,0,.03);
-  }
-  .listItem{
-    background:var(--card);
-    padding:14px;
-    border-radius:12px;
-    margin:10px 0;
-    cursor:pointer;
-    border:1px solid rgba(0,0,0,.04);
-  }
-  .listItem .title{font-weight:bold}
-  .listItem .meta{color:var(--muted);margin-top:4px;font-size:13px}
-  .row{display:flex;gap:10px}
-  .row > div{flex:1}
-  .hidden{display:none}
-  .pill{
-    background:var(--pill);
-    padding:10px;
-    border-radius:8px;
-    margin:6px 0;
-    border:1px solid rgba(0,0,0,.04);
-  }
-  .pill.active{background:var(--pillActive)}
-  .hr{height:1px;background:var(--line);margin:12px 0}
-  .label{font-size:12px;color:var(--muted);margin-top:8px}
-  .kvs{line-height:1.55}
-  .kvs b{display:inline-block;min-width:86px}
-  .topSearch{
-    margin:10px 0 0;
-    display:flex;
-    gap:8px;
-    align-items:center;
-  }
-  .topSearch input{margin:0}
-  .topSearch button{margin:0;width:auto;white-space:nowrap;padding:12px 14px;border-radius:10px}
-  .note{font-size:13px;color:var(--muted)}
-  .lockNote{font-size:12px;color:var(--muted);margin-top:6px}
-
-  /* Photo grid */
-  .photoGrid{
-    display:grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap:10px;
-    margin-top:10px;
-  }
-  .thumb{
-    width:100%;
-    aspect-ratio: 1 / 1;
-    object-fit: cover;
-    border-radius:10px;
-    border:1px solid rgba(0,0,0,.08);
-    background:#eee;
-  }
-  .thumbWrap{position:relative}
-  .thumbDel{
-    position:absolute;
-    top:6px;
-    right:6px;
-    background:rgba(198,40,40,0.95);
-    color:#fff;
-    border:none;
-    border-radius:999px;
-    width:28px;
-    height:28px;
-    font-size:18px;
-    line-height:28px;
-    padding:0;
-    cursor:pointer;
-  }
-
-  /* Modal */
-  .modalOverlay{
-    position:fixed;
-    inset:0;
-    background:rgba(0,0,0,.7);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:14px;
-    z-index:9999;
-  }
-  .modal{
-    background:#111;
-    border-radius:14px;
-    width:100%;
-    max-width:520px;
-    overflow:hidden;
-  }
-  .modal img{
-    width:100%;
-    height:auto;
-    display:block;
-  }
-  .modalBar{
-    display:flex;
-    gap:10px;
-    padding:10px;
-    background:#000;
-  }
-  .modalBar button{
-    margin:0;
-    padding:12px;
-    font-size:15px;
-    border-radius:10px;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cattle Tracker</title>
+  <style>
+    :root{--bg:#f2f2f2;--card:#fff;--primary:#2e7d32;--secondary:#0277bd;--danger:#c62828;--line:#e5e5e5}
+    body{margin:0;padding:15px;font-family:Arial;background:var(--bg)}
+    h1{text-align:center;margin:10px 0 6px}
+    .sub{text-align:center;color:#555;font-size:12px;margin:0 0 12px}
+    button{width:100%;padding:14px;margin:6px 0;font-size:16px;border-radius:10px;border:none;color:#fff}
+    .primary{background:var(--primary)}
+    .secondary{background:var(--secondary)}
+    .danger{background:var(--danger)}
+    input,select{width:100%;padding:12px;margin:6px 0;border-radius:8px;border:1px solid #ccc}
+    .card{background:var(--card);padding:15px;border-radius:12px;margin-top:12px}
+    .hidden{display:none}
+    .list{cursor:pointer}
+    .row{display:flex;gap:8px}
+    .row > *{flex:1}
+    .badge{background:#e8f5e9;padding:8px;border-radius:6px;margin:6px 0}
+    .modalBack{
+      position:fixed;left:0;top:0;width:100%;height:100%;
+      background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;
+      padding:16px;z-index:9999;
+    }
+    .modal{
+      width:100%;max-width:520px;background:#111;border-radius:14px;overflow:hidden;
+      border:1px solid rgba(255,255,255,.2);
+    }
+    .modalInner{background:#111;color:#fff;padding:10px}
+    .modalInner img{width:100%;height:auto;display:block;border-radius:10px}
+    .modalBtns{background:#000;padding:10px}
+  </style>
 </head>
-
 <body>
-  <h1>🐄 Cattle Tracker</h1>
-  <div class="sub">Offline-ready • Data & photos stored on this device</div>
 
-  <div id="screens">
+<h1>🐄 Cattle Tracker</h1>
+<div class="sub">Offline-ready • Data & photos stored on this device</div>
 
-    <!-- HOME -->
-    <div id="home">
-      <div class="topSearch">
-        <input id="globalSearch" placeholder="Search by Tag # (all active)" />
-        <button class="secondary" onclick="searchByTag()">Search</button>
-      </div>
+<div id="screens">
 
-      <button class="primary" onclick="show('calves')">Calves</button>
-      <button class="secondary" onclick="show('heifers')">Heifers</button>
-      <button class="secondary" onclick="show('cows')">Cows</button>
-      <button class="secondary" onclick="show('bulls')">Bulls</button>
-      <button class="secondary" onclick="show('sold')">Sold / History</button>
-
-      <div class="card">
-        <div class="note">
-          Photos are saved in your browser storage (IndexedDB). If you clear Safari website data, it clears the app.
-        </div>
-      </div>
+  <!-- HOME -->
+  <div id="home">
+    <div class="row">
+      <input id="searchTag" placeholder="Search by Tag # (all active)" />
+      <button class="secondary" style="max-width:130px" onclick="doSearch()">Search</button>
     </div>
-
-    <!-- CALVES LIST -->
-    <div id="calves" class="hidden">
-      <button class="primary" onclick="openAdd('calf')">➕ Add Calf</button>
-
-      <div class="topSearch">
-        <input id="calfSearch" placeholder="Search calves by Tag #" oninput="refresh()" />
-        <button class="ghost" onclick="document.getElementById('calfSearch').value='';refresh()">Clear</button>
-      </div>
-
-      <div id="calfList"></div>
-      <button class="secondary" onclick="goBack('home')">Back</button>
-    </div>
-
-    <!-- HEIFERS LIST -->
-    <div id="heifers" class="hidden">
-      <button class="primary" onclick="openAdd('heifer')">➕ Add Heifer</button>
-
-      <div class="topSearch">
-        <input id="heiferSearch" placeholder="Search heifers by Tag #" oninput="refresh()" />
-        <button class="ghost" onclick="document.getElementById('heiferSearch').value='';refresh()">Clear</button>
-      </div>
-
-      <div id="heiferList"></div>
-      <button class="secondary" onclick="goBack('home')">Back</button>
-    </div>
-
-    <!-- COWS LIST -->
-    <div id="cows" class="hidden">
-      <button class="primary" onclick="openAdd('cow')">➕ Add Cow</button>
-
-      <div class="topSearch">
-        <input id="cowSearch" placeholder="Search cows by Tag #" oninput="refresh()" />
-        <button class="ghost" onclick="document.getElementById('cowSearch').value='';refresh()">Clear</button>
-      </div>
-
-      <div id="cowList"></div>
-      <button class="secondary" onclick="goBack('home')">Back</button>
-    </div>
-
-    <!-- BULLS LIST -->
-    <div id="bulls" class="hidden">
-      <button class="primary" onclick="openAdd('bull')">➕ Add Bull</button>
-
-      <div class="topSearch">
-        <input id="bullSearch" placeholder="Search bulls by Tag #" oninput="refresh()" />
-        <button class="ghost" onclick="document.getElementById('bullSearch').value='';refresh()">Clear</button>
-      </div>
-
-      <div id="bullList"></div>
-      <button class="secondary" onclick="goBack('home')">Back</button>
-    </div>
-
-    <!-- SOLD / HISTORY -->
-    <div id="sold" class="hidden">
-      <div class="topSearch">
-        <input id="soldSearch" placeholder="Search sold/history by Tag #" oninput="refresh()" />
-        <button class="ghost" onclick="document.getElementById('soldSearch').value='';refresh()">Clear</button>
-      </div>
-
-      <div id="soldList"></div>
-      <button class="secondary" onclick="goBack('home')">Back</button>
-    </div>
-
-    <!-- ADD SCREEN -->
-    <div id="add" class="card hidden"></div>
-
-    <!-- DETAIL SCREEN -->
-    <div id="detail" class="card hidden"></div>
-
+    <button class="primary" onclick="show('calves')">Calves</button>
+    <button class="secondary" onclick="show('heifers')">Heifers</button>
+    <button class="secondary" onclick="show('cows')">Cows</button>
+    <button class="secondary" onclick="show('bulls')">Bulls</button>
+    <button class="secondary" onclick="show('sold')">Sold / History</button>
+    <button class="danger" onclick="resetAll()">Reset Data (if stuck)</button>
   </div>
 
-  <!-- Photo Modal -->
-  <div id="modalOverlay" class="modalOverlay hidden" onclick="closeModal(event)">
-    <div class="modal" onclick="event.stopPropagation()">
-      <img id="modalImg" alt="Photo"/>
-      <div class="modalBar">
-        <button class="secondary" onclick="closeModal()">Close</button>
-      </div>
+  <!-- LISTS -->
+  <div id="calves" class="hidden">
+    <button class="primary" onclick="show('addCalf')">➕ Add Calf</button>
+    <div id="calfList"></div>
+    <button class="secondary" onclick="show('home')">Back</button>
+  </div>
+
+  <div id="heifers" class="hidden">
+    <button class="primary" onclick="show('addHeifer')">➕ Add Heifer</button>
+    <div id="heiferList"></div>
+    <button class="secondary" onclick="show('home')">Back</button>
+  </div>
+
+  <div id="cows" class="hidden">
+    <button class="primary" onclick="show('addCow')">➕ Add Cow</button>
+    <div id="cowList"></div>
+    <button class="secondary" onclick="show('home')">Back</button>
+  </div>
+
+  <div id="bulls" class="hidden">
+    <button class="primary" onclick="show('addBull')">➕ Add Bull</button>
+    <div id="bullList"></div>
+    <button class="secondary" onclick="show('home')">Back</button>
+  </div>
+
+  <div id="sold" class="hidden">
+    <h2>Sold / History</h2>
+    <div id="soldList"></div>
+    <button class="secondary" onclick="show('home')">Back</button>
+  </div>
+
+  <!-- ADD SCREENS -->
+  <div id="addCalf" class="card hidden">
+    <h2>Add Calf</h2>
+    <select id="aSex">
+      <option value="Female">Female</option>
+      <option value="Male">Male</option>
+    </select>
+    <input id="aTag" placeholder="Tag (optional)">
+    <input id="aColor" placeholder="Tag Color (type it)">
+    <input id="aDesc" placeholder="Description (Black, Grey, Motley Face, etc)">
+    <input type="date" id="aBorn">
+    <select id="aDam"></select>
+    <select id="aSire"></select>
+    <button class="primary" onclick="createAnimal('calf')">Save Calf</button>
+    <button class="secondary" onclick="show('calves')">Cancel</button>
+  </div>
+
+  <div id="addHeifer" class="card hidden">
+    <h2>Add Heifer</h2>
+    <input id="hTag" placeholder="Tag (optional)">
+    <input id="hColor" placeholder="Tag Color (type it)">
+    <input id="hDesc" placeholder="Description (Black, Grey, Motley Face, etc)">
+    <input type="date" id="hBorn">
+    <button class="primary" onclick="createAnimal('heifer')">Save Heifer</button>
+    <button class="secondary" onclick="show('heifers')">Cancel</button>
+  </div>
+
+  <div id="addCow" class="card hidden">
+    <h2>Add Cow</h2>
+    <input id="cTag" placeholder="Tag">
+    <input id="cColor" placeholder="Tag Color (type it)">
+    <input id="cDesc" placeholder="Description (Black, Grey, Motley Face, etc)">
+    <input type="date" id="cBorn">
+    <button class="primary" onclick="createAnimal('cow')">Save Cow</button>
+    <button class="secondary" onclick="show('cows')">Cancel</button>
+  </div>
+
+  <div id="addBull" class="card hidden">
+    <h2>Add Bull</h2>
+    <input id="bTag" placeholder="Bull # (ex: 25)">
+    <input id="bDesc" placeholder="Description (optional)">
+    <button class="primary" onclick="createAnimal('bull')">Save Bull</button>
+    <button class="secondary" onclick="show('bulls')">Cancel</button>
+  </div>
+
+  <!-- DETAIL -->
+  <div id="detail" class="card hidden"></div>
+
+</div>
+
+<!-- PHOTO MODAL (SAFE: starts hidden, never opened on load) -->
+<div id="photoModal" class="modalBack hidden" onclick="closePhoto(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modalInner">
+      <img id="modalImg" alt="photo" />
+    </div>
+    <div class="modalBtns">
+      <button class="secondary" onclick="closePhoto()">Close</button>
     </div>
   </div>
+</div>
 
 <script>
-/* =========================
-   IndexedDB for Photos
-   - Store: "photos"
-   - Key: photoId (number)
-   - Value: { photoId, animalId, blob, createdAt }
-========================= */
-const DB_NAME = 'cattle_tracker_db';
-const DB_VERSION = 1;
-let dbPromise = null;
-
-function openPhotoDB(){
-  if(dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if(!db.objectStoreNames.contains('photos')){
-        const store = db.createObjectStore('photos', { keyPath: 'photoId' });
-        store.createIndex('byAnimal', 'animalId', { unique: false });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-  return dbPromise;
-}
-
-async function putPhotoRecord(record){
-  const db = await openPhotoDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('photos', 'readwrite');
-    tx.objectStore('photos').put(record);
-    tx.oncomplete = () => resolve(true);
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function getPhotoRecord(photoId){
-  const db = await openPhotoDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('photos', 'readonly');
-    const req = tx.objectStore('photos').get(photoId);
-    req.onsuccess = () => resolve(req.result || null);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function deletePhotoRecord(photoId){
-  const db = await openPhotoDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('photos', 'readwrite');
-    tx.objectStore('photos').delete(photoId);
-    tx.oncomplete = () => resolve(true);
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function getPhotoIdsForAnimal(animalId){
-  const db = await openPhotoDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('photos', 'readonly');
-    const idx = tx.objectStore('photos').index('byAnimal');
-    const req = idx.getAllKeys(animalId);
-    req.onsuccess = () => resolve(req.result || []);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function blobToURL(blob){
-  return URL.createObjectURL(blob);
-}
-
-/* =========================
-   Storage + Utilities
-========================= */
-let animals = JSON.parse(localStorage.getItem('animals') || '[]');
-let screenStack = [];
-let editingId = null;
-let draft = null;
-let selectedVaxIndex = null;
-let originalDraftSnapshot = null;
+/*** STORAGE ***/
+let animals = JSON.parse(localStorage.getItem("animals") || "[]"); // calves/heifers/cows/bulls all together
+let editing = null;
+let dirty = false;
 
 function saveAll(){
-  localStorage.setItem('animals', JSON.stringify(animals));
+  localStorage.setItem("animals", JSON.stringify(animals));
 }
 
-function uid(){
-  return Date.now() + Math.floor(Math.random()*1000);
+function resetAll(){
+  if(!confirm("Reset all saved data on this device?")) return;
+  localStorage.removeItem("animals");
+  animals = [];
+  editing = null;
+  dirty = false;
+  closePhoto();
+  show("home");
 }
 
-function byId(id){
-  return animals.find(a => a.id === id);
-}
-
-function safeTag(a){
-  return (a.tag && String(a.tag).trim().length) ? String(a.tag).trim() : "—";
-}
-
-function roleLabel(role){
-  return role.toUpperCase();
-}
-
-function fmtDam(damId){
-  if(!damId) return "Unknown";
-  const d = byId(Number(damId));
-  return d ? ("Cow " + safeTag(d)) : "Unknown";
-}
-
-function fmtSire(sireId){
-  if(!sireId) return "Unknown";
-  const s = byId(Number(sireId));
-  return s ? ("Bull " + safeTag(s)) : "Unknown";
-}
-
-function isPromotedLocked(a){
-  return (a.lockAfterPromote === true) && (a.role === 'heifer' || a.role === 'cow');
-}
-
-function hasUnsavedChanges(){
-  if(!draft || !originalDraftSnapshot) return false;
-  return JSON.stringify(draft) !== JSON.stringify(originalDraftSnapshot);
-}
-
-function confirmIfUnsaved(next){
-  if(hasUnsavedChanges()){
-    if(!confirm("You have unsaved changes. Discard them?")) return;
-  }
-  next();
-}
-
-/* =========================
-   Navigation
-========================= */
+/*** UI NAV ***/
 function show(id){
+  // prevent backing out with unsaved edits
+  if(editing && dirty && id !== "detail"){
+    if(!confirm("You have unsaved changes. Leave without saving?")) return;
+    dirty = false;
+  }
   document.querySelectorAll("#screens > div").forEach(d => d.classList.add("hidden"));
   document.getElementById(id).classList.remove("hidden");
   refresh();
 }
 
-function goBack(fallback){
-  const current = getCurrentScreenId();
-  if(current === 'detail' || current === 'add'){
-    return confirmIfUnsaved(() => popScreen(fallback));
-  }
-  popScreen(fallback);
-}
-
-function getCurrentScreenId(){
-  const all = Array.from(document.querySelectorAll("#screens > div"));
-  const shown = all.find(d => !d.classList.contains('hidden'));
-  return shown ? shown.id : 'home';
-}
-
-function pushScreen(id){
-  const current = getCurrentScreenId();
-  if(current) screenStack.push(current);
-  show(id);
-}
-
-function popScreen(fallback){
-  const prev = screenStack.pop() || fallback || 'home';
-  show(prev);
-}
-
-/* =========================
-   Lists + Search
-========================= */
-function normalize(s){ return String(s || '').trim().toLowerCase(); }
-
-function matchesTag(a, query){
-  if(!query) return true;
-  return normalize(a.tag).includes(normalize(query));
-}
-
-function shortDesc(a){
-  const d = (a.description || "").trim();
-  return d ? d : "";
-}
-
 function refresh(){
-  const calfQ = document.getElementById('calfSearch')?.value || '';
-  const heiferQ = document.getElementById('heiferSearch')?.value || '';
-  const cowQ = document.getElementById('cowSearch')?.value || '';
-  const bullQ = document.getElementById('bullSearch')?.value || '';
-  const soldQ = document.getElementById('soldSearch')?.value || '';
-
-  const calves = animals.filter(a => a.role==='calf' && !a.sold).filter(a => matchesTag(a, calfQ));
-  calfList.innerHTML = calves.map(renderListItem).join('') || `<div class="card">No calves yet.</div>`;
-
-  const heifers = animals.filter(a => a.role==='heifer' && !a.sold).filter(a => matchesTag(a, heiferQ));
-  heiferList.innerHTML = heifers.map(renderListItem).join('') || `<div class="card">No heifers yet.</div>`;
-
-  const cows = animals.filter(a => a.role==='cow' && !a.sold).filter(a => matchesTag(a, cowQ));
-  cowList.innerHTML = cows.map(renderListItem).join('') || `<div class="card">No cows yet.</div>`;
-
-  const bulls = animals.filter(a => a.role==='bull' && !a.sold).filter(a => matchesTag(a, bullQ));
-  bullList.innerHTML = bulls.map(renderListItem).join('') || `<div class="card">No bulls yet.</div>`;
-
-  const sold = animals.filter(a => a.sold).filter(a => matchesTag(a, soldQ));
-  soldList.innerHTML = sold.map(renderListItem).join('') || `<div class="card">No sold/history yet.</div>`;
-}
-
-function renderListItem(a){
-  const metaBits = [];
-  const desc = shortDesc(a);
-  const photoCount = Array.isArray(a.photoIds) ? a.photoIds.length : 0;
-
-  if(a.role === 'calf'){
-    metaBits.push(a.sex || '');
-    metaBits.push(fmtDam(a.damId));
-    metaBits.push(fmtSire(a.sireId));
-    if(desc) metaBits.push(desc);
-  }
-  if(a.role === 'heifer'){
-    metaBits.push("Born " + (a.birth || "—"));
-    if(desc) metaBits.push(desc);
-  }
-  if(a.role === 'cow'){
-    const herCalves = animals.filter(x => !x.sold && x.damId && Number(x.damId)===a.id);
-    metaBits.push("Calves: " + herCalves.length);
-    if(desc) metaBits.push(desc);
-  }
-  if(a.role === 'bull'){
-    const his = animals.filter(x => !x.sold && x.sireId && Number(x.sireId)===a.id);
-    metaBits.push("Sired: " + his.length);
-    if(desc) metaBits.push(desc);
-  }
-  if(a.sold) metaBits.push("SOLD");
-  if(photoCount) metaBits.push("Photos: " + photoCount);
-
-  return `
-    <div class="listItem" onclick="openDetail(${a.id})">
-      <div class="title">${roleLabel(a.role)} | Tag ${safeTag(a)}</div>
-      <div class="meta">${metaBits.filter(Boolean).join(" • ")}</div>
+  // lists
+  calfList.innerHTML = listHtml("calf");
+  heiferList.innerHTML = listHtml("heifer");
+  cowList.innerHTML = listHtml("cow");
+  bullList.innerHTML = listHtml("bull");
+  soldList.innerHTML = animals.filter(a=>a.sold).map(a=>`
+    <div class="card">
+      ${a.role.toUpperCase()} | Tag ${escape(a.tag || "—")} | ${escape(a.desc||"")}
     </div>
-  `;
+  `).join("") || `<div class="card">No sold/history yet.</div>`;
+
+  // dropdowns for adding calf
+  aDam.innerHTML = `<option value="">Select Cow (Dam) (optional)</option>` +
+    animals.filter(a=>a.role==="cow" && !a.sold).map(c=>`<option value="${c.id}">${escape(c.tag||"Cow")} — ${escape(c.desc||"")}</option>`).join("");
+  aSire.innerHTML = `<option value="">Select Bull (Sire) (optional)</option>` +
+    animals.filter(a=>a.role==="bull" && !a.sold).map(b=>`<option value="${b.id}">${escape(b.tag||"Bull")} — ${escape(b.desc||"")}</option>`).join("");
 }
 
-function searchByTag(){
-  const q = normalize(globalSearch.value);
-  if(!q){ alert("Enter a tag number to search."); return; }
-  const found = animals.find(a => !a.sold && normalize(a.tag) === q);
-  if(!found){
-    alert("No active animal found with that exact tag. (Try partial search inside a tab.)");
-    return;
-  }
-  openDetail(found.id);
+function listHtml(role){
+  const active = animals.filter(a=>a.role===role && !a.sold);
+  if(!active.length) return `<div class="card">None yet.</div>`;
+  return active.map(a=>`
+    <div class="card list" onclick="openAnimal(${a.id})">
+      ${role.toUpperCase()} | Tag ${escape(a.tag||"—")} | ${escape(a.desc||"")}
+    </div>
+  `).join("");
 }
 
-/* =========================
-   Add Forms
-========================= */
-function openAdd(role){
-  confirmIfUnsaved(() => {
-    editingId = null;
-    draft = null;
-    selectedVaxIndex = null;
-    originalDraftSnapshot = null;
+/*** CREATE ***/
+function createAnimal(role){
+  const nowId = Date.now();
 
-    const addDiv = document.getElementById('add');
-    addDiv.innerHTML = renderAddForm(role);
-    pushScreen('add');
-    populateSelectsForAdd(role);
-  });
-}
-
-function populateSelectsForAdd(role){
-  if(role === 'calf'){
-    const cowSel = document.getElementById('addDam');
-    const sireSel = document.getElementById('addSire');
-
-    const cowOptions = animals.filter(a => a.role==='cow' && !a.sold)
-      .map(c => `<option value="${c.id}">Cow ${safeTag(c)}</option>`).join('');
-
-    cowSel.innerHTML = `<option value="">Unknown (optional)</option>` + cowOptions;
-
-    const bullOptions = animals.filter(a => a.role==='bull' && !a.sold)
-      .map(b => `<option value="${b.id}">Bull ${safeTag(b)}</option>`).join('');
-
-    sireSel.innerHTML = `<option value="">Unknown (optional)</option>` + bullOptions;
-  }
-}
-
-function renderAddForm(role){
-  if(role === 'calf'){
-    return `
-      <h2>Add Calf</h2>
-
-      <div class="row">
-        <div>
-          <div class="label">Sex</div>
-          <select id="addSex">
-            <option value="Female">Female</option>
-            <option value="Male">Male</option>
-          </select>
-        </div>
-        <div>
-          <div class="label">Born</div>
-          <input id="addBirth" type="date"/>
-        </div>
-      </div>
-
-      <div class="label">Tag (optional)</div>
-      <input id="addTag" placeholder="e.g. 24"/>
-
-      <div class="label">Tag Color (type it)</div>
-      <input id="addColor" placeholder="e.g. Red"/>
-
-      <div class="label">Description</div>
-      <input id="addDesc" placeholder="e.g. Black, Grey, Motley face"/>
-
-      <div class="label">Cow (Dam) (optional)</div>
-      <select id="addDam"><option value="">Unknown (optional)</option></select>
-
-      <div class="label">Bull (Sire) (optional)</div>
-      <select id="addSire"><option value="">Unknown (optional)</option></select>
-
-      <button class="primary" onclick="createCalf()">Save Calf</button>
-      <button class="secondary" onclick="goBack('calves')">Cancel</button>
-    `;
-  }
-
-  if(role === 'heifer'){
-    return `
-      <h2>Add Heifer (Existing)</h2>
-
-      <div class="label">Tag #</div>
-      <input id="addHeiferTag" placeholder="e.g. 12"/>
-
-      <div class="label">Tag Color</div>
-      <input id="addHeiferColor" placeholder="e.g. Yellow"/>
-
-      <div class="label">Born (optional)</div>
-      <input id="addHeiferBirth" type="date"/>
-
-      <div class="label">Description</div>
-      <input id="addHeiferDesc" placeholder="e.g. Grey, Motley face"/>
-
-      <button class="primary" onclick="createHeifer()">Save Heifer</button>
-      <button class="secondary" onclick="goBack('heifers')">Cancel</button>
-    `;
-  }
-
-  if(role === 'cow'){
-    return `
-      <h2>Add Cow (Existing)</h2>
-
-      <div class="label">Tag #</div>
-      <input id="addCowTag" placeholder="e.g. 42"/>
-
-      <div class="label">Tag Color</div>
-      <input id="addCowColor" placeholder="e.g. Yellow"/>
-
-      <div class="label">Born (optional)</div>
-      <input id="addCowBirth" type="date"/>
-
-      <div class="label">Description</div>
-      <input id="addCowDesc" placeholder="e.g. Black, Grey"/>
-
-      <button class="primary" onclick="createCow()">Save Cow</button>
-      <button class="secondary" onclick="goBack('cows')">Cancel</button>
-    `;
-  }
-
-  if(role === 'bull'){
-    return `
-      <h2>Add Bull</h2>
-
-      <div class="label">Bull # (tag)</div>
-      <input id="addBullTag" placeholder="e.g. 25"/>
-
-      <div class="label">Description</div>
-      <input id="addBullDesc" placeholder="e.g. Black, big frame"/>
-
-      <div class="label">Notes (optional)</div>
-      <textarea id="addBullNotes" placeholder="Anything you want to remember about this bull"></textarea>
-
-      <button class="primary" onclick="createBull()">Save Bull</button>
-      <button class="secondary" onclick="goBack('bulls')">Cancel</button>
-    `;
-  }
-
-  return `<div>Unknown add type.</div>`;
-}
-
-function baseAnimal(){
-  return {
-    id: uid(),
-    sold: false,
-    tag: "",
-    color: "",
-    description: "",
-    birth: "",
-    damId: null,
-    sireId: null,
-    cut: null,
-    vaccines: [],
-    notes: "",
-    lockAfterPromote: false,
-    photoIds: [] // photoId list (points to IndexedDB)
-  };
-}
-
-function createCalf(){
-  const a = baseAnimal();
-  a.role = 'calf';
-  a.sex = addSex.value;
-  a.birth = addBirth.value || "";
-  a.tag = addTag.value || "";
-  a.color = addColor.value || "";
-  a.description = (document.getElementById('addDesc').value || "");
-  a.damId = addDam.value ? Number(addDam.value) : null;
-  a.sireId = addSire.value ? Number(addSire.value) : null;
-  a.cut = (a.sex === 'Male') ? 'No' : null;
-  a.lockAfterPromote = false;
-  animals.push(a);
-  saveAll();
-  show('calves');
-}
-
-function createHeifer(){
-  const a = baseAnimal();
-  a.role = 'heifer';
-  a.sex = 'Female';
-  a.tag = addHeiferTag.value || "";
-  a.color = addHeiferColor.value || "";
-  a.birth = addHeiferBirth.value || "";
-  a.description = addHeiferDesc.value || "";
-  a.lockAfterPromote = false;
-  animals.push(a);
-  saveAll();
-  show('heifers');
-}
-
-function createCow(){
-  const a = baseAnimal();
-  a.role = 'cow';
-  a.sex = 'Female';
-  a.tag = addCowTag.value || "";
-  a.color = addCowColor.value || "";
-  a.birth = addCowBirth.value || "";
-  a.description = addCowDesc.value || "";
-  a.lockAfterPromote = false;
-  animals.push(a);
-  saveAll();
-  show('cows');
-}
-
-function createBull(){
-  const a = baseAnimal();
-  a.role = 'bull';
-  a.sex = 'Male';
-  a.tag = addBullTag.value || "";
-  a.description = addBullDesc.value || "";
-  a.notes = addBullNotes.value || "";
-  a.lockAfterPromote = false;
-  animals.push(a);
-  saveAll();
-  show('bulls');
-}
-
-/* =========================
-   Detail Screen + Photos
-========================= */
-function openDetail(id){
-  confirmIfUnsaved(() => {
-    editingId = id;
-    const a = byId(id);
-    draft = JSON.parse(JSON.stringify(a));
-    selectedVaxIndex = null;
-    originalDraftSnapshot = JSON.parse(JSON.stringify(draft));
-    renderDetail();
-    pushScreen('detail');
-  });
-}
-
-async function renderPhotoGrid(animal){
-  // Always sync ids from DB (in case)
-  const ids = Array.isArray(animal.photoIds) ? animal.photoIds : [];
-  if(!ids.length){
-    return `<div class="pill">No photos yet.</div>`;
-  }
-
-  // Create thumbs by loading each blob and making object URL
-  let html = `<div class="photoGrid">`;
-  for(const pid of ids){
-    const rec = await getPhotoRecord(pid);
-    if(!rec || !rec.blob) continue;
-    const url = blobToURL(rec.blob);
-    html += `
-      <div class="thumbWrap">
-        <img class="thumb" src="${url}" alt="photo" onclick="openModalByPhotoId(${pid})"/>
-        <button class="thumbDel" onclick="event.stopPropagation();deletePhotoFromAnimal(${pid})">×</button>
-      </div>
-    `;
-  }
-  html += `</div>`;
-  return html;
-}
-
-async function openModalByPhotoId(photoId){
-  const rec = await getPhotoRecord(photoId);
-  if(!rec || !rec.blob){
-    alert("Photo not found.");
-    return;
-  }
-  const url = blobToURL(rec.blob);
-  modalImg.src = url;
-  modalOverlay.classList.remove('hidden');
-}
-
-function closeModal(){
-  modalOverlay.classList.add('hidden');
-  modalImg.src = "";
-}
-
-async function addPhotosFromInput(){
-  const input = document.getElementById('photoInput');
-  if(!input || !input.files || !input.files.length) return;
-
-  const animalIndex = animals.findIndex(x => x.id === editingId);
-  if(animalIndex === -1){ alert("Animal missing."); return; }
-
-  // Add each photo to IndexedDB + attach photoId to animal record immediately
-  for(const file of input.files){
-    const photoId = uid();
-    await putPhotoRecord({
-      photoId,
-      animalId: editingId,
-      blob: file,
-      createdAt: Date.now()
+  if(role==="calf"){
+    const sex = aSex.value;
+    animals.push({
+      id: nowId,
+      role: "calf",
+      sex,
+      tag: aTag.value.trim(),
+      color: aColor.value.trim(),
+      desc: aDesc.value.trim(),
+      born: aBorn.value || "",
+      damId: aDam.value || "",
+      sireId: aSire.value || "",
+      cut: (sex==="Male") ? "No" : "",
+      vaccines: [],
+      photos: [],
+      sold: false
     });
-
-    if(!Array.isArray(animals[animalIndex].photoIds)) animals[animalIndex].photoIds = [];
-    animals[animalIndex].photoIds.push(photoId);
+    saveAll();
+    show("calves");
+    return;
   }
 
-  saveAll();
+  if(role==="heifer"){
+    animals.push({
+      id: nowId,
+      role: "heifer",
+      sex: "Female",
+      tag: hTag.value.trim(),
+      color: hColor.value.trim(),
+      desc: hDesc.value.trim(),
+      born: hBorn.value || "",
+      damId: "",
+      sireId: "",
+      cut: "",
+      vaccines: [],
+      photos: [],
+      sold: false
+    });
+    saveAll();
+    show("heifers");
+    return;
+  }
 
-  // Keep draft in sync too (so UI updates)
-  const fresh = byId(editingId);
-  draft.photoIds = JSON.parse(JSON.stringify(fresh.photoIds || []));
+  if(role==="cow"){
+    animals.push({
+      id: nowId,
+      role: "cow",
+      sex: "Female",
+      tag: cTag.value.trim(),
+      color: cColor.value.trim(),
+      desc: cDesc.value.trim(),
+      born: cBorn.value || "",
+      vaccines: [],
+      photos: [],
+      sold: false
+    });
+    saveAll();
+    show("cows");
+    return;
+  }
 
-  // reset chooser
-  input.value = "";
-
-  // re-render
-  originalDraftSnapshot = JSON.parse(JSON.stringify(draft));
-  renderDetail();
+  if(role==="bull"){
+    animals.push({
+      id: nowId,
+      role: "bull",
+      sex: "Male",
+      tag: bTag.value.trim(),
+      color: "",
+      desc: bDesc.value.trim(),
+      born: "",
+      vaccines: [],
+      photos: [],
+      sold: false
+    });
+    saveAll();
+    show("bulls");
+    return;
+  }
 }
 
-async function deletePhotoFromAnimal(photoId){
-  if(!confirm("Delete this photo?")) return;
-
-  const idx = animals.findIndex(x => x.id === editingId);
-  if(idx === -1) return;
-
-  // Remove link
-  animals[idx].photoIds = (animals[idx].photoIds || []).filter(id => id !== photoId);
-
-  // Delete blob
-  await deletePhotoRecord(photoId);
-
-  saveAll();
-
-  // Sync draft
-  const fresh = byId(editingId);
-  draft.photoIds = JSON.parse(JSON.stringify(fresh.photoIds || []));
-
-  originalDraftSnapshot = JSON.parse(JSON.stringify(draft));
-  renderDetail();
+/*** SEARCH ***/
+function doSearch(){
+  const q = (searchTag.value||"").trim().toLowerCase();
+  if(!q){ alert("Enter a tag number to search."); return; }
+  const found = animals.find(a => !a.sold && (a.tag||"").toLowerCase() === q);
+  if(!found){ alert("No active animal found with that tag."); return; }
+  openAnimal(found.id);
 }
 
-async function renderDetail(){
-  const a = draft;
-  const locked = isPromotedLocked(a);
+/*** DETAIL VIEW / EDIT ***/
+function openAnimal(id){
+  const a = animals.find(x=>x.id===id);
+  if(!a) return;
 
-  const herCalves = (a.role === 'cow')
-    ? animals.filter(x => !x.sold && x.damId && Number(x.damId) === a.id)
+  editing = JSON.parse(JSON.stringify(a));
+  dirty = false;
+
+  // linked names
+  const dam = editing.damId ? animals.find(x=>String(x.id)===String(editing.damId)) : null;
+  const sire = editing.sireId ? animals.find(x=>String(x.id)===String(editing.sireId)) : null;
+
+  // calves for a cow (relationship by damId)
+  const cowCalves = (editing.role==="cow")
+    ? animals.filter(x => (x.role==="calf" || x.role==="heifer" || x.role==="cow") && String(x.damId||"")===String(editing.id) )
     : [];
-  const hisCalves = (a.role === 'bull')
-    ? animals.filter(x => !x.sold && x.sireId && Number(x.sireId) === a.id)
-    : [];
 
-  const cows = animals.filter(x => x.role==='cow' && !x.sold);
-  const bulls = animals.filter(x => x.role==='bull' && !x.sold);
+  // build vaccine list
+  const vHtml = (editing.vaccines||[]).length
+    ? editing.vaccines.map((v,idx)=>`
+        <div class="badge">
+          <b>${escape(v.date||"")}</b>${v.note?` — ${escape(v.note)}`:""}
+          <div class="row">
+            <button class="secondary" onclick="editVax(${idx})">Edit</button>
+            <button class="danger" onclick="delVax(${idx})">Delete</button>
+          </div>
+        </div>
+      `).join("")
+    : `<div class="badge">None</div>`;
 
-  const damSelect = (a.role === 'calf' && !locked)
-    ? `
-      <div class="label">Cow (Dam)</div>
-      <select id="eDam">
-        <option value="">Unknown (optional)</option>
-        ${cows.map(c => `<option value="${c.id}" ${a.damId===c.id?'selected':''}>Cow ${safeTag(c)}</option>`).join('')}
-      </select>`
-    : `<div class="kvs"><b>Dam:</b> ${fmtDam(a.damId)}</div>`;
+  // build photo list (inside animal only)
+  const pHtml = (editing.photos||[]).length
+    ? editing.photos.map((src,idx)=>`
+        <div class="badge">
+          Photo ${idx+1}
+          <div class="row">
+            <button class="secondary" onclick="viewPhoto(${idx})">View</button>
+            <button class="danger" onclick="delPhoto(${idx})">Delete</button>
+          </div>
+        </div>
+      `).join("")
+    : `<div class="badge">None</div>`;
 
-  const sireSelect = (a.role === 'calf' && !locked)
-    ? `
-      <div class="label">Bull (Sire)</div>
-      <select id="eSire">
-        <option value="">Unknown (optional)</option>
-        ${bulls.map(b => `<option value="${b.id}" ${a.sireId===b.id?'selected':''}>Bull ${safeTag(b)}</option>`).join('')}
-      </select>`
-    : `<div class="kvs"><b>Sire:</b> ${fmtSire(a.sireId)}</div>`;
+  // dam/sire dropdowns for editing (only for calves/heifers/cows)
+  const damSelect = `
+    <select id="eDam" onchange="markDirty()">
+      <option value="">(No Dam selected)</option>
+      ${animals.filter(x=>x.role==="cow" && !x.sold).map(c=>`
+        <option value="${c.id}" ${String(editing.damId||"")==String(c.id)?"selected":""}>
+          ${escape(c.tag||"Cow")} — ${escape(c.desc||"")}
+        </option>
+      `).join("")}
+    </select>
+  `;
 
-  const cutUI = (a.sex === 'Male' && a.role === 'calf')
-    ? `
-      <div class="label">Cut</div>
-      <select id="eCut">
-        <option value="No" ${a.cut==='No'?'selected':''}>No</option>
-        <option value="Yes" ${a.cut==='Yes'?'selected':''}>Yes</option>
-      </select>
-    ` : '';
+  const sireSelect = `
+    <select id="eSire" onchange="markDirty()">
+      <option value="">(No Sire selected)</option>
+      ${animals.filter(x=>x.role==="bull" && !x.sold).map(b=>`
+        <option value="${b.id}" ${String(editing.sireId||"")==String(b.id)?"selected":""}>
+          ${escape(b.tag||"Bull")} — ${escape(b.desc||"")}
+        </option>
+      `).join("")}
+    </select>
+  `;
 
-  const promoteUI = (a.role === 'calf' && a.sex === 'Female')
-    ? `<button class="secondary" onclick="promote()">Promote to Heifer</button>`
-    : (a.role === 'heifer')
-      ? `<button class="secondary" onclick="promote()">Promote to Cow</button>`
-      : '';
-
-  const soldBtnText = a.sold ? "Unmark Sold (Restore)" : "Mark Sold";
-  const soldBtnClass = a.sold ? "secondary" : "danger";
-
-  const canEditDescription =
-    (a.role === 'calf') ||
-    (a.role === 'bull') ||
-    ((a.role === 'heifer' || a.role === 'cow') && !locked);
-
-  // Vaccines UI
-  const v = Array.isArray(a.vaccines) ? a.vaccines : [];
-  const vList = v.length
-    ? v.map((vx, idx) => `
-      <div class="pill ${selectedVaxIndex===idx?'active':''}" onclick="selectVax(${idx})">
-        ${escapeHtml(vx.date || '—')}${vx.note ? " — " + escapeHtml(vx.note) : ""}
-      </div>
-    `).join('')
-    : `<div class="pill">None</div>`;
-
-  const selected = (selectedVaxIndex !== null && v[selectedVaxIndex])
-    ? v[selectedVaxIndex]
-    : {date:'', note:''};
-
-  const photoGridHTML = await renderPhotoGrid(a);
+  const roleTitle = editing.role.toUpperCase();
 
   detail.innerHTML = `
-    <h2>${roleLabel(a.role)}</h2>
+    <h2>${roleTitle}</h2>
 
-    <div class="label">Tag</div>
-    <input id="eTag" value="${escapeHtml(a.tag || '')}" placeholder="(optional)"/>
-
-    <div class="label">Tag Color</div>
-    <input id="eColor" value="${escapeHtml(a.color || '')}" placeholder="(type it)"/>
-
-    <div class="label">Born</div>
-    <input id="eBirth" type="date" value="${escapeHtml(a.birth || '')}" />
-
-    <div class="label">Description</div>
-    ${canEditDescription
-      ? `<input id="eDesc" value="${escapeHtml(a.description || '')}" placeholder="e.g. Black, Grey, Motley face"/>`
-      : `<div class="pill">${escapeHtml(a.description || '—')}</div>
-         <div class="lockNote">Description is locked after promotion.</div>`
-    }
-
-    <div class="hr"></div>
-
-    <div class="kvs">
-      <b>Sex:</b> ${a.sex || '—'}<br/>
-      ${damSelect}
-      ${sireSelect}
+    <div class="badge">
+      <div><b>Sex:</b> ${escape(editing.sex||"")}${(editing.role!=="calf")?` (locked)`:""}</div>
+      <div><b>Status:</b> ${editing.sold ? "SOLD" : "ACTIVE"}</div>
     </div>
 
-    ${cutUI}
+    Tag:
+    <input id="eTag" value="${escapeAttr(editing.tag||"")}" oninput="markDirty()">
 
-    <div class="hr"></div>
+    Tag Color:
+    <input id="eColor" value="${escapeAttr(editing.color||"")}" oninput="markDirty()">
+
+    Description:
+    <input id="eDesc" value="${escapeAttr(editing.desc||"")}" oninput="markDirty()">
+
+    Born:
+    <input type="date" id="eBorn" value="${escapeAttr(editing.born||"")}" oninput="markDirty()">
+
+    ${(editing.role==="calf" || editing.role==="heifer") ? `
+      Cow (Dam):
+      ${damSelect}
+      Bull (Sire):
+      ${sireSelect}
+      <div class="badge">
+        <b>Currently:</b><br>
+        Dam: ${dam ? escape(dam.tag||"Cow")+" — "+escape(dam.desc||"") : "Unknown"}<br>
+        Sire: ${sire ? escape(sire.tag||"Bull")+" — "+escape(sire.desc||"") : "Unknown"}
+      </div>
+    ` : ""}
+
+    ${(editing.sex==="Male") ? `
+      Cut:
+      <select id="eCut" onchange="markDirty()">
+        <option value="No" ${editing.cut==="No"?"selected":""}>No</option>
+        <option value="Yes" ${editing.cut==="Yes"?"selected":""}>Yes</option>
+      </select>
+    ` : ""}
+
+    ${(editing.role==="cow") ? `
+      <h3>Calves Produced</h3>
+      ${cowCalves.length ? cowCalves.map(x=>`
+        <div class="badge">
+          ${escape(x.role.toUpperCase())} | Tag ${escape(x.tag||"—")} | ${escape(x.sex||"")}
+        </div>
+      `).join("") : `<div class="badge">None linked yet.</div>`}
+    ` : ""}
 
     <h3>Vaccines</h3>
-    ${vList}
-
-    <div class="label">Vaccine Date</div>
-    <input id="vDate" type="date" value="${escapeHtml(selected.date || '')}"/>
-
-    <div class="label">Vaccine Note (optional)</div>
-    <input id="vNote" value="${escapeHtml(selected.note || '')}" placeholder="e.g. Normak"/>
-
-    <button class="secondary" onclick="addOrUpdateVax()">Add / Update Vaccine</button>
-    <button class="danger" onclick="deleteVax()">Delete Vaccine</button>
-
-    <div class="hr"></div>
+    ${vHtml}
+    <div class="badge">
+      <b>Add Vaccine</b>
+      <input type="date" id="newVDate" onchange="markDirty()">
+      <input id="newVNote" placeholder="Vaccine note (optional)" oninput="markDirty()">
+      <button class="secondary" onclick="addVax()">Add Vaccine</button>
+    </div>
 
     <h3>Photos</h3>
-    <div class="note">Tap a photo to view large. Photos save immediately to this device.</div>
-    <input id="photoInput" type="file" accept="image/*" multiple capture="environment" />
-    <button class="secondary" onclick="addPhotosFromInput()">Add Selected Photos</button>
-    ${photoGridHTML}
+    ${pHtml}
+    <div class="badge">
+      <b>Add Photo</b>
+      <input type="file" id="photoFile" accept="image/*" onchange="addPhoto(this.files)">
+    </div>
 
-    <div class="hr"></div>
+    <button class="primary" onclick="saveEdits()">Save Changes</button>
 
-    <div class="label">Notes</div>
-    <textarea id="eNotes" placeholder="Optional notes...">${escapeHtml(a.notes || '')}</textarea>
+    ${(editing.role==="calf" && editing.sex==="Female") ? `
+      <button class="secondary" onclick="promote()">Promote to Heifer</button>
+    ` : ""}
 
-    ${a.role === 'cow' ? `
-      <div class="hr"></div>
-      <h3>Calves (Produced: ${herCalves.length})</h3>
-      ${herCalves.length ? herCalves.map(c => `
-        <div class="pill" onclick="openDetail(${c.id})">
-          ${c.role.toUpperCase()} • Tag ${safeTag(c)} • ${c.sex} • Born ${c.birth||'—'}
-        </div>
-      `).join('') : `<div class="pill">None yet.</div>`}
-    ` : ''}
+    ${(editing.role==="heifer") ? `
+      <button class="secondary" onclick="promote()">Promote to Cow</button>
+    ` : ""}
 
-    ${a.role === 'bull' ? `
-      <div class="hr"></div>
-      <h3>Calves Sired (${hisCalves.length})</h3>
-      ${hisCalves.length ? hisCalves.map(c => `
-        <div class="pill" onclick="openDetail(${c.id})">
-          ${c.role.toUpperCase()} • Tag ${safeTag(c)} • ${c.sex} • Born ${c.birth||'—'}
-        </div>
-      `).join('') : `<div class="pill">None yet.</div>`}
-    ` : ''}
+    ${(!editing.sold) ? `<button class="danger" onclick="markSold()">Mark Sold</button>` : ""}
 
-    <div class="hr"></div>
-
-    <button class="primary small" onclick="saveChanges()">Save Changes</button>
-    ${promoteUI}
-    <button class="${soldBtnClass}" onclick="toggleSold()">${soldBtnText}</button>
-    <button class="warn" onclick="deleteAnimal()">Delete (Permanent)</button>
-    <button class="secondary" onclick="goBack('home')">Back</button>
-
-    <div class="note">Back discards unsaved changes. Use “Save Changes” to keep edits.</div>
+    <button class="danger" onclick="deleteAnimal()">Delete</button>
+    <button class="secondary" onclick="backFromDetail()">Back</button>
   `;
+
+  show("detail");
 }
 
-function escapeHtml(s){
-  return String(s||'')
-    .replaceAll('&','&amp;')
-    .replaceAll('<','&lt;')
-    .replaceAll('>','&gt;')
-    .replaceAll('"','&quot;')
-    .replaceAll("'","&#039;");
+function markDirty(){ dirty = true; }
+
+function backFromDetail(){
+  // go back to the correct list
+  const map = {calf:"calves", heifer:"heifers", cow:"cows", bull:"bulls"};
+  show(map[editing.role] || "home");
 }
 
-/* =========================
-   Vaccines (draft until Save)
-========================= */
-function selectVax(idx){
-  selectedVaxIndex = idx;
-  renderDetail();
-}
+/*** SAVE / DELETE / SOLD / PROMOTE ***/
+function saveEdits(){
+  const i = animals.findIndex(x=>x.id===editing.id);
+  if(i<0) return;
 
-function addOrUpdateVax(){
-  const date = document.getElementById('vDate').value;
-  const note = document.getElementById('vNote').value || "";
-  if(!date){ alert("Please select a vaccine date."); return; }
+  // apply edits from form
+  const role = animals[i].role; // original role in storage
 
-  if(!draft.vaccines) draft.vaccines = [];
+  animals[i].tag  = document.getElementById("eTag").value.trim();
+  animals[i].color= document.getElementById("eColor").value.trim();
+  animals[i].desc = document.getElementById("eDesc").value.trim();
+  animals[i].born = document.getElementById("eBorn").value || "";
 
-  if(selectedVaxIndex === null){
-    draft.vaccines.push({date, note});
-  }else{
-    draft.vaccines[selectedVaxIndex] = {date, note};
+  if(role==="calf" || role==="heifer"){
+    animals[i].damId = document.getElementById("eDam")?.value || "";
+    animals[i].sireId= document.getElementById("eSire")?.value || "";
   }
 
-  selectedVaxIndex = null;
-  renderDetail();
-}
-
-function deleteVax(){
-  if(selectedVaxIndex === null){
-    alert("Tap a vaccine in the list first to select it.");
-    return;
-  }
-  if(!confirm("Delete this vaccine entry?")) return;
-
-  draft.vaccines.splice(selectedVaxIndex, 1);
-  selectedVaxIndex = null;
-  renderDetail();
-}
-
-/* =========================
-   Save / Promote / Sold / Delete
-========================= */
-function saveChanges(){
-  const a = draft;
-
-  a.tag = document.getElementById('eTag').value || "";
-  a.color = document.getElementById('eColor').value || "";
-  a.birth = document.getElementById('eBirth').value || "";
-  a.notes = document.getElementById('eNotes').value || "";
-
-  const eDesc = document.getElementById('eDesc');
-  if(eDesc) a.description = eDesc.value || "";
-
-  if(a.role === 'calf'){
-    const damSel = document.getElementById('eDam');
-    const sireSel = document.getElementById('eSire');
-    if(damSel) a.damId = damSel.value ? Number(damSel.value) : null;
-    if(sireSel) a.sireId = sireSel.value ? Number(sireSel.value) : null;
-
-    if(a.sex === 'Male'){
-      const cutSel = document.getElementById('eCut');
-      if(cutSel) a.cut = cutSel.value;
-      if(!a.cut) a.cut = 'No';
-    }
+  if(animals[i].sex==="Male"){
+    animals[i].cut = document.getElementById("eCut")?.value || "No";
   }
 
-  const idx = animals.findIndex(x => x.id === editingId);
-  if(idx === -1){ alert("Could not save (animal missing)."); return; }
+  // vaccines/photos live in editing object updates; sync them
+  animals[i].vaccines = editing.vaccines || [];
+  animals[i].photos   = editing.photos || [];
 
-  // Preserve photoIds (already in record), but keep draft copy
-  if(!Array.isArray(a.photoIds)) a.photoIds = animals[idx].photoIds || [];
-
-  animals[idx] = JSON.parse(JSON.stringify(a));
   saveAll();
+  dirty = false;
+  alert("Saved!");
+  backFromDetail();
+}
 
-  originalDraftSnapshot = JSON.parse(JSON.stringify(a));
-  alert("Saved.");
-  renderDetail();
+function deleteAnimal(){
+  if(!confirm("Delete this animal? This cannot be undone.")) return;
+  animals = animals.filter(x=>x.id!==editing.id);
+
+  // also unlink calves that referenced it as dam/sire
+  animals.forEach(x=>{
+    if(String(x.damId||"")===String(editing.id)) x.damId = "";
+    if(String(x.sireId||"")===String(editing.id)) x.sireId = "";
+  });
+
+  saveAll();
+  editing = null;
+  dirty = false;
+  show("home");
+}
+
+function markSold(){
+  if(!confirm("Mark as sold? It will move to Sold/History but stay saved.")) return;
+  const i = animals.findIndex(x=>x.id===editing.id);
+  if(i<0) return;
+  animals[i].sold = true;
+  saveAll();
+  editing = null;
+  dirty = false;
+  show("sold");
 }
 
 function promote(){
-  if(!draft) return;
+  const i = animals.findIndex(x=>x.id===editing.id);
+  if(i<0) return;
 
-  if(hasUnsavedChanges()){
-    alert("Please Save Changes before promoting.");
-    return;
-  }
-
-  if(draft.role === 'calf'){
-    if(draft.sex === 'Male'){ alert("Male calves cannot be promoted."); return; }
-    if(!confirm("Promote this calf to Heifer? (Sex/Dam/Sire/Description will be locked after promotion.)")) return;
-
-    const idx = animals.findIndex(x => x.id === editingId);
-    animals[idx].role = 'heifer';
-    animals[idx].lockAfterPromote = true;
+  if(animals[i].role==="calf"){
+    if(animals[i].sex!=="Female"){ alert("Only female calves can be promoted."); return; }
+    if(!confirm("Promote this CALF to HEIFER?")) return;
+    animals[i].role = "heifer";
+    // keep everything (tag/color/desc/vaccines/photos/dam/sire)
     saveAll();
-
-    openDetail(editingId);
-    show('heifers');
+    editing = null;
+    dirty = false;
+    show("heifers");
     return;
   }
 
-  if(draft.role === 'heifer'){
-    if(!confirm("Promote this heifer to Cow?")) return;
-
-    const idx = animals.findIndex(x => x.id === editingId);
-    animals[idx].role = 'cow';
+  if(animals[i].role==="heifer"){
+    if(!confirm("Promote this HEIFER to COW?")) return;
+    animals[i].role = "cow";
+    // once cow, dam/sire fields are no longer shown/edited
     saveAll();
-
-    openDetail(editingId);
-    show('cows');
+    editing = null;
+    dirty = false;
+    show("cows");
     return;
   }
 }
 
-function toggleSold(){
-  if(!draft) return;
-
-  if(hasUnsavedChanges()){
-    alert("Please Save Changes before changing Sold status.");
-    return;
-  }
-
-  const idx = animals.findIndex(x => x.id === editingId);
-  if(idx === -1) return;
-
-  if(!animals[idx].sold){
-    if(!confirm("Mark as SOLD? It will move to Sold/History but data stays.")) return;
-    animals[idx].sold = true;
-  }else{
-    if(!confirm("Restore from SOLD? It will return to active lists.")) return;
-    animals[idx].sold = false;
-  }
-
-  saveAll();
-  openDetail(editingId);
+/*** VACCINES (EDIT/DELETE) ***/
+function addVax(){
+  const d = document.getElementById("newVDate").value;
+  const n = document.getElementById("newVNote").value.trim();
+  if(!d){ alert("Pick a vaccine date."); return; }
+  if(!editing.vaccines) editing.vaccines = [];
+  editing.vaccines.push({date:d, note:n});
+  dirty = true;
+  openAnimal(editing.id);
 }
 
-async function deleteAnimal(){
-  if(!draft) return;
-  if(!confirm("DELETE permanently? This cannot be undone (including photos).")) return;
-
-  // delete photos
-  const ids = Array.isArray(draft.photoIds) ? draft.photoIds : [];
-  for(const pid of ids){
-    await deletePhotoRecord(pid);
-  }
-
-  animals = animals.filter(x => x.id !== editingId);
-  saveAll();
-
-  editingId = null;
-  draft = null;
-  selectedVaxIndex = null;
-  originalDraftSnapshot = null;
-
-  show('home');
+function editVax(idx){
+  const v = editing.vaccines[idx];
+  const nd = prompt("Edit vaccine date (YYYY-MM-DD):", v.date || "");
+  if(nd===null) return;
+  const nn = prompt("Edit note (optional):", v.note || "");
+  if(nn===null) return;
+  editing.vaccines[idx] = {date: (nd||"").trim(), note: (nn||"").trim()};
+  dirty = true;
+  openAnimal(editing.id);
 }
 
-/* =========================
-   Modal
-========================= */
-function openModal(url){
-  modalImg.src = url;
-  modalOverlay.classList.remove('hidden');
+function delVax(idx){
+  if(!confirm("Delete this vaccine entry?")) return;
+  editing.vaccines.splice(idx,1);
+  dirty = true;
+  openAnimal(editing.id);
 }
 
-/* =========================
-   Init
-========================= */
-async function init(){
-  if(!Array.isArray(animals)) animals = [];
-  await openPhotoDB(); // ensure db ready
-  show('home');
+/*** PHOTOS (MULTIPLE, INSIDE ANIMAL ONLY) ***/
+function addPhoto(fileList){
+  if(!fileList || !fileList.length) return;
+  const file = fileList[0];
+  const reader = new FileReader();
+  reader.onload = () => {
+    if(!editing.photos) editing.photos = [];
+    editing.photos.push(reader.result); // base64 data URL
+    dirty = true;
+    openAnimal(editing.id);
+  };
+  reader.readAsDataURL(file);
 }
-init();
+
+function viewPhoto(idx){
+  const src = (editing.photos||[])[idx];
+  if(!src) return;
+  modalImg.src = src;
+  photoModal.classList.remove("hidden");
+}
+
+function delPhoto(idx){
+  if(!confirm("Delete this photo?")) return;
+  editing.photos.splice(idx,1);
+  dirty = true;
+  openAnimal(editing.id);
+}
+
+function closePhoto(){
+  photoModal.classList.add("hidden");
+  modalImg.src = "";
+}
+
+/*** HELPERS ***/
+function escape(s){ return String(s||"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function escapeAttr(s){ return escape(s).replace(/"/g,'&quot;'); }
+
+/// Safe boot: always hide modal
+closePhoto();
+show("home");
 </script>
+
 </body>
 </html>
